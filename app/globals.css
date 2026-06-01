@@ -1,0 +1,219 @@
+/**
+ * ============================================================================
+ * FITPRO ACADEMIA - ESTILOS GLOBAIS
+ * ============================================================================
+ * 
+ * Este arquivo contém todas as variáveis CSS e estilos base do sistema.
+ * O design segue um tema escuro com cor primária dourada (#D4AF37).
+ * 
+ * ESTRUTURA DO ARQUIVO:
+ * - Importações do Tailwind e animações
+ * - Variáveis CSS (tokens de design)
+ * - Tema escuro (dark mode)
+ * - Configuração do tema inline
+ * - Estilos base
+ * 
+ * CORES PRINCIPAIS:
+ * - Primary (Dourado): oklch(0.78 0.12 85) - Botões, destaques, ícones
+ * - Background: oklch(0.13 0 0) - Fundo principal escuro
+ * - Card: oklch(0.16 0 0) - Fundo dos cards
+ * - Secondary: oklch(0.22 0 0) - Elementos secundários
+ * - Border: oklch(0.28 0 0) - Bordas sutis
+ * 
+ * MANUTENÇÃO:
+ * - Para alterar a cor primária, modifique --primary e --accent
+ * - Para ajustar contraste, modifique --foreground e --muted-foreground
+ * - Mantenha consistência entre :root e .dark
+ * 
+ * @author FitPro Academia
+ * @version 1.0.0
+ * @lastModified 2026-06-01
+ * ============================================================================
+ */
+
+/* Importações essenciais do Tailwind CSS v4 e biblioteca de animações */
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+/* Variante customizada para dark mode usando seletor de classe */
+@custom-variant dark (&:is(.dark *));
+
+/**
+ * VARIÁVEIS CSS - TEMA PADRÃO (ESCURO)
+ * 
+ * O sistema usa OKLCH para cores, oferecendo melhor percepção de luminosidade.
+ * Formato: oklch(lightness chroma hue)
+ * - lightness: 0-1 (escuro para claro)
+ * - chroma: 0-0.4 (cinza para saturado)
+ * - hue: 0-360 (círculo cromático)
+ */
+:root {
+  /* Cores de fundo principais */
+  --background: oklch(0.13 0 0);           /* Fundo principal - quase preto */
+  --foreground: oklch(0.98 0 0);           /* Texto principal - branco */
+  
+  /* Cards e popover - levemente mais claros que o fundo */
+  --card: oklch(0.16 0 0);                 /* Fundo dos cards */
+  --card-foreground: oklch(0.98 0 0);      /* Texto dos cards */
+  --popover: oklch(0.16 0 0);              /* Fundo de menus dropdown */
+  --popover-foreground: oklch(0.98 0 0);   /* Texto de menus dropdown */
+  
+  /* Cor primária - Dourado (identidade visual da marca) */
+  --primary: oklch(0.78 0.12 85);          /* Dourado vibrante */
+  --primary-foreground: oklch(0.13 0 0);   /* Texto sobre dourado - escuro */
+  
+  /* Cores secundárias - tons de cinza */
+  --secondary: oklch(0.22 0 0);            /* Elementos secundários */
+  --secondary-foreground: oklch(0.98 0 0); /* Texto secundário */
+  
+  /* Cores para texto mutado (menos importante) */
+  --muted: oklch(0.22 0 0);                /* Fundo mutado */
+  --muted-foreground: oklch(0.65 0 0);     /* Texto mutado - cinza médio */
+  
+  /* Cores de destaque (usa a mesma cor primária) */
+  --accent: oklch(0.78 0.12 85);           /* Destaques */
+  --accent-foreground: oklch(0.13 0 0);    /* Texto sobre destaque */
+  
+  /* Cores de erro/destruição */
+  --destructive: oklch(0.577 0.245 27.325);           /* Vermelho erro */
+  --destructive-foreground: oklch(0.577 0.245 27.325); /* Texto erro */
+  
+  /* Bordas e inputs */
+  --border: oklch(0.28 0 0);               /* Cor das bordas */
+  --input: oklch(0.22 0 0);                /* Fundo dos inputs */
+  --ring: oklch(0.78 0.12 85);             /* Anel de foco (dourado) */
+  
+  /* Cores para gráficos - paleta diversificada */
+  --chart-1: oklch(0.78 0.12 85);          /* Dourado (primário) */
+  --chart-2: oklch(0.7 0.15 160);          /* Verde */
+  --chart-3: oklch(0.6 0.2 30);            /* Vermelho/Laranja */
+  --chart-4: oklch(0.65 0.18 200);         /* Azul */
+  --chart-5: oklch(0.75 0.14 330);         /* Rosa/Roxo */
+  
+  /* Raio de borda padrão */
+  --radius: 0.75rem;                       /* 12px - cantos arredondados */
+  
+  /* Cores da sidebar (navegação lateral) */
+  --sidebar: oklch(0.1 0 0);               /* Fundo da sidebar - mais escuro */
+  --sidebar-foreground: oklch(0.98 0 0);   /* Texto da sidebar */
+  --sidebar-primary: oklch(0.78 0.12 85);  /* Itens ativos - dourado */
+  --sidebar-primary-foreground: oklch(0.13 0 0);
+  --sidebar-accent: oklch(0.22 0 0);       /* Hover da sidebar */
+  --sidebar-accent-foreground: oklch(0.98 0 0);
+  --sidebar-border: oklch(0.28 0 0);       /* Bordas da sidebar */
+  --sidebar-ring: oklch(0.78 0.12 85);     /* Foco da sidebar */
+}
+
+/**
+ * TEMA ESCURO (.dark)
+ * 
+ * Neste projeto, o tema escuro é o padrão.
+ * As variáveis são duplicadas para garantir consistência
+ * caso a classe .dark seja adicionada ao HTML.
+ */
+.dark {
+  --background: oklch(0.13 0 0);
+  --foreground: oklch(0.98 0 0);
+  --card: oklch(0.16 0 0);
+  --card-foreground: oklch(0.98 0 0);
+  --popover: oklch(0.16 0 0);
+  --popover-foreground: oklch(0.98 0 0);
+  --primary: oklch(0.78 0.12 85);
+  --primary-foreground: oklch(0.13 0 0);
+  --secondary: oklch(0.22 0 0);
+  --secondary-foreground: oklch(0.98 0 0);
+  --muted: oklch(0.22 0 0);
+  --muted-foreground: oklch(0.65 0 0);
+  --accent: oklch(0.78 0.12 85);
+  --accent-foreground: oklch(0.13 0 0);
+  --destructive: oklch(0.396 0.141 25.723);
+  --destructive-foreground: oklch(0.637 0.237 25.331);
+  --border: oklch(0.28 0 0);
+  --input: oklch(0.22 0 0);
+  --ring: oklch(0.78 0.12 85);
+  --chart-1: oklch(0.78 0.12 85);
+  --chart-2: oklch(0.7 0.15 160);
+  --chart-3: oklch(0.6 0.2 30);
+  --chart-4: oklch(0.65 0.18 200);
+  --chart-5: oklch(0.75 0.14 330);
+  --sidebar: oklch(0.1 0 0);
+  --sidebar-foreground: oklch(0.98 0 0);
+  --sidebar-primary: oklch(0.78 0.12 85);
+  --sidebar-primary-foreground: oklch(0.13 0 0);
+  --sidebar-accent: oklch(0.22 0 0);
+  --sidebar-accent-foreground: oklch(0.98 0 0);
+  --sidebar-border: oklch(0.28 0 0);
+  --sidebar-ring: oklch(0.78 0.12 85);
+}
+
+/**
+ * CONFIGURAÇÃO DO TEMA INLINE
+ * 
+ * Mapeia as variáveis CSS para classes do Tailwind.
+ * Permite usar classes como bg-background, text-primary, etc.
+ */
+@theme inline {
+  /* Fontes do sistema */
+  --font-sans: 'Geist', 'Geist Fallback';
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  
+  /* Mapeamento de cores para classes Tailwind */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  
+  /* Variações de raio de borda */
+  --radius-sm: calc(var(--radius) - 4px);  /* 8px */
+  --radius-md: calc(var(--radius) - 2px);  /* 10px */
+  --radius-lg: var(--radius);               /* 12px */
+  --radius-xl: calc(var(--radius) + 4px);  /* 16px */
+  
+  /* Cores da sidebar */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/**
+ * ESTILOS BASE
+ * 
+ * Aplicados globalmente a todos os elementos.
+ * Define comportamentos padrão para bordas e cores.
+ */
+@layer base {
+  /* Todos os elementos usam a cor de borda padrão */
+  * {
+    @apply border-border outline-ring/50;
+  }
+  
+  /* Body usa cores de fundo e texto do tema */
+  body {
+    @apply bg-background text-foreground;
+  }
+}
