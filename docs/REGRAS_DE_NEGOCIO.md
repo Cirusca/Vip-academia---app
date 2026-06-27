@@ -7,8 +7,8 @@
 
 Este documento detalha as **regras de negócio** que governam o comportamento do
 sistema. Cada regra é **testável** e tem um identificador estável (`RN-<domínio>-<n>`).
-Decisões ainda não confirmadas pelo produto aparecem marcadas com 🔶 e estão
-consolidadas na Seção 9.
+As decisões de produto que estavam pendentes foram **confirmadas em 27/06/2026**
+e estão consolidadas na Seção 9; as regras abaixo já refletem essas decisões.
 
 **Legenda de status:** ✅ já refletido na UI (mock) · 🟡 parcial · ❌ a implementar.
 
@@ -33,8 +33,8 @@ consolidadas na Seção 9.
 | ID | Regra | Status |
 |---|---|---|
 | RN-VIN-01 | O vínculo entre profissional e aluno é representado por `Link { professionalId, alunoId, status }`. | ❌ |
-| RN-VIN-02 | O **profissional** inicia o vínculo adicionando/convidando um aluno; o vínculo nasce com status `pendente` e passa a `ativo` após aceite do aluno. 🔶 | ❌ |
-| RN-VIN-03 | **No MVP, um aluno tem no máximo 1 profissional `ativo` por vez.** O modelo permite múltiplos vínculos historicamente, mas apenas um ativo. 🔶 | ❌ |
+| RN-VIN-02 | O **profissional** inicia o vínculo adicionando/convidando um aluno; o vínculo nasce com status `pendente` e passa a `ativo` após aceite do aluno. | ❌ |
+| RN-VIN-03 | **No MVP, um aluno tem no máximo 1 profissional `ativo` por vez.** O modelo permite múltiplos vínculos historicamente, mas apenas um ativo. | ❌ |
 | RN-VIN-04 | Um **profissional** pode ter **N alunos** vinculados (sem limite técnico no MVP). | ❌ |
 | RN-VIN-05 | Qualquer das partes pode **encerrar** o vínculo, que passa a status `inativo`; o histórico de treinos do aluno é preservado. | ❌ |
 | RN-VIN-06 | Um profissional só pode **atribuir treinos** e **ver o progresso** de alunos com vínculo `ativo` (ver RN-ATR e RN-SEG). | ❌ |
@@ -65,7 +65,7 @@ consolidadas na Seção 9.
 | RN-ATR-03 | Um mesmo plano pode ser atribuído a **vários alunos**; um aluno pode ter **vários planos** atribuídos (ex.: Treino A, B, C). | 🟡 (UI mostra A/B/C) |
 | RN-ATR-04 | O **aluno só enxerga planos atribuídos a ele**; nunca a biblioteca completa do profissional. | ❌ |
 | RN-ATR-05 | Uma atribuição tem status `ativa`, `pausada` ou `concluída`. Apenas atribuições `ativas` aparecem como treinos do dia para o aluno. | ❌ |
-| RN-ATR-06 | A atribuição **referencia** o plano (não copia). Edições do profissional no plano **refletem** nas atribuições `ativas`. Registros já executados permanecem imutáveis (RN-EXE-07). 🔶 | ❌ |
+| RN-ATR-06 | A atribuição **referencia** o plano (não copia). Edições do profissional no plano **refletem** nas atribuições `ativas`. Registros já executados permanecem imutáveis (RN-EXE-07). | ❌ |
 | RN-ATR-07 | Encerrar o vínculo (RN-VIN-05) **suspende** as atribuições ativas daquele aluno (passam a `pausada`/`inativa`). | ❌ |
 
 ---
@@ -77,9 +77,9 @@ consolidadas na Seção 9.
 | RN-EXE-01 | Ao "**Iniciar Treino**", o sistema cria um `WorkoutLog { alunoId, workoutPlanId, date, durationMin, caloriesBurned }`. | 🟡 (botão sem ação) |
 | RN-EXE-02 | Durante a execução, o aluno **marca/desmarca** cada exercício como concluído, gerando/atualizando `ExerciseLog { completed }`. | 🟡 (só estado de sessão) |
 | RN-EXE-03 | O **progresso de um treino** = `round(exercícios concluídos / total de exercícios × 100)`. | ✅ (`workout-details.tsx`) |
-| RN-EXE-04 | Um treino é considerado **concluído** quando o aluno o finaliza explicitamente (botão "Concluir") **ou** quando 100% dos exercícios estão marcados. 🔶 | ❌ |
+| RN-EXE-04 | Um treino é considerado **concluído** quando o aluno o finaliza explicitamente (botão "Concluir") **ou** quando 100% dos exercícios estão marcados. | ❌ |
 | RN-EXE-05 | As **métricas de Progresso** (total de treinos, calorias acumuladas, tempo total) são derivadas dos `WorkoutLog`/`ExerciseLog` do aluno — nunca digitadas manualmente. | 🟡 (UI mock) |
-| RN-EXE-06 | A **sequência (streak)** conta dias consecutivos com ao menos um treino concluído; zera ao pular um dia. 🔶 | ❌ |
+| RN-EXE-06 | A **sequência (streak)** conta dias consecutivos com ao menos um treino concluído; zera ao pular um dia. | ❌ |
 | RN-EXE-07 | O **histórico** (`WorkoutLog`/`ExerciseLog`) é **imutável** após a conclusão do treino: edições posteriores no plano não alteram registros passados. | ❌ |
 | RN-EXE-08 | O **profissional** acompanha o progresso apenas dos **seus** alunos ativos (RN-SEG-03). | ❌ |
 
@@ -89,7 +89,7 @@ consolidadas na Seção 9.
 
 | ID | Regra | Status |
 |---|---|---|
-| RN-CFG-01 | O usuário pode editar nome, telefone e foto; o **email** só muda mediante reverificação. 🔶 | 🟡 (form sem submissão) |
+| RN-CFG-01 | O usuário pode editar nome, telefone e foto; o **email** só muda mediante reverificação. | 🟡 (form sem submissão) |
 | RN-CFG-02 | A troca de senha exige a **senha atual** e a nova senha deve respeitar RN-USR-04. | 🟡 |
 | RN-CFG-03 | A preferência de **tema** (claro/escuro) é persistida por usuário e aplicada no carregamento. | ❌ |
 | RN-CFG-04 | O idioma do MVP é fixo em **pt-BR**. | ✅ |
@@ -113,24 +113,25 @@ consolidadas na Seção 9.
 |---|---|
 | RN-INV-01 | Integridade referencial: `Exercise`→`WorkoutPlan`, `Assignment`→(`WorkoutPlan`,`User`), `ExerciseLog`→`WorkoutLog` devem sempre apontar para registros existentes. |
 | RN-INV-02 | Datas de execução não podem ser **futuras**. |
-| RN-INV-03 | Exclusões de entidades com histórico usam **soft delete** (marcação `inativo`) para preservar `WorkoutLog`/`ExerciseLog`. 🔶 |
+| RN-INV-03 | Exclusões de entidades com histórico usam **soft delete** (marcação `inativo`) para preservar `WorkoutLog`/`ExerciseLog`. |
 | RN-INV-04 | Valores numéricos de treino são não-negativos (`sets ≥ 1`, `durationMin ≥ 0`, `caloriesBurned ≥ 0`). |
 
 ---
 
-## 9. Decisões Pendentes (🔶)
+## 9. Decisões Confirmadas
 
-Regras acima marcadas com 🔶 dependem de confirmação do produto:
+As decisões de produto abaixo foram **aprovadas em bloco em 27/06/2026** e já
+estão incorporadas às regras das seções anteriores:
 
-| # | Regra | Pergunta | Recomendação |
+| # | Regra | Pergunta | Decisão confirmada |
 |---|---|---|---|
-| 1 | RN-VIN-02 | O vínculo é por **convite com aceite** do aluno, ou o profissional adiciona direto? | Convite com aceite (mais aderente à LGPD) |
-| 2 | RN-VIN-03 | Um aluno pode ter **mais de um** profissional ativo? | Não no MVP (1 ativo); modelo permite N |
-| 3 | RN-ATR-06 | Editar um plano **propaga** para atribuições ativas ou cria nova versão? | Propaga; histórico permanece imutável |
-| 4 | RN-EXE-04 | Treino conclui **automaticamente** a 100% ou só por ação do aluno? | Ambos (100% **ou** botão) |
-| 5 | RN-EXE-06 | Como definir a **sequência (streak)** — por dia, por treino atribuído? | Dias consecutivos com ≥1 treino concluído |
-| 6 | RN-CFG-01 | Troca de email exige **reverificação**? | Sim |
-| 7 | RN-INV-03 | Usar **soft delete** em todas as entidades com histórico? | Sim |
+| 1 | RN-VIN-02 | O vínculo é por **convite com aceite** do aluno, ou o profissional adiciona direto? | ✔ Convite com aceite (mais aderente à LGPD) |
+| 2 | RN-VIN-03 | Um aluno pode ter **mais de um** profissional ativo? | ✔ Não no MVP (1 ativo); modelo permite N |
+| 3 | RN-ATR-06 | Editar um plano **propaga** para atribuições ativas ou cria nova versão? | ✔ Propaga; histórico permanece imutável |
+| 4 | RN-EXE-04 | Treino conclui **automaticamente** a 100% ou só por ação do aluno? | ✔ Ambos (100% **ou** botão) |
+| 5 | RN-EXE-06 | Como definir a **sequência (streak)** — por dia, por treino atribuído? | ✔ Dias consecutivos com ≥1 treino concluído |
+| 6 | RN-CFG-01 | Troca de email exige **reverificação**? | ✔ Sim |
+| 7 | RN-INV-03 | Usar **soft delete** em todas as entidades com histórico? | ✔ Sim |
 
 ---
 
