@@ -1,181 +1,145 @@
-# Plano de Implementação — VIP Academia
+# Plano de Implementação — `[NOME_DO_APP]` (App de Treino)
 
-> **Versão:** 1.0  
+> **Versão:** 2.0 (escopo reduzido — MVP)  
 > **Data:** 27/06/2026  
 > **Documento base:** [`RELATORIO_DE_REQUISITOS.md`](./RELATORIO_DE_REQUISITOS.md)  
-> **Objetivo:** Evoluir o protótipo de UI para um produto funcional, com dados
-> reais, autenticação e os módulos faltantes.
+> **Objetivo:** Evoluir o protótipo de UI para um **app de treino** funcional —
+> **B2B2C**, focado em **aluno + profissional**, para academias **low-mid**.
 
 ---
 
 ## Estratégia Geral
 
-O produto hoje é um **front-end completo com dados mockados**. O caminho mais
-eficiente é manter a UI existente e introduzir, de forma incremental:
+O escopo foi **reduzido** ao núcleo: o **profissional** monta e **atribui**
+treinos; o **aluno** executa e acompanha progresso. Mantém-se a UI existente e
+introduz-se, de forma incremental: camada de dados, persistência, autenticação
+com 2 papéis e o fluxo de atribuição.
 
-1. Uma **camada de dados** (estado/serviços) que substitua os mocks.
-2. **Persistência** (banco + API).
-3. **Autenticação e papéis**.
-4. Os **módulos ausentes** (Alunos, Relatórios).
-5. **Qualidade** (validação, testes, acessibilidade, tema).
-
-Cada fase entrega valor de forma independente e pode ser feita em PRs separados.
+**Saíram do MVP:** Agenda, Relatórios, painel administrativo da academia,
+notificações multicanais, 2FA e integrações (ver Seção 7 do relatório).
 
 ---
 
-## Fase 0 — Fundação e Padronização (rápida, baixo risco)
+## Fase 0 — Fundação e Branding (rápida, baixo risco)
 
-**Meta:** alinhar a base antes de construir sobre ela.
+- [ ] **0.1** **Definir o nome do produto** e unificar a marca (resolver *VIP* vs
+      *FitPro*): sidebar, `app/layout.tsx` (metadata) e `public/manifest.json`.
+- [ ] **0.2** Centralizar os dados mockados em `lib/mock-data/` e criar **tipos
+      TypeScript** (`lib/types.ts`) a partir do modelo reduzido (Seção 6 do relatório).
+- [ ] **0.3** Criar camada de acesso a dados (`lib/data/*`) que hoje lê dos mocks
+      e amanhã chamará a API — a UI passa a consumir só essa camada.
+- [ ] **0.4** Conectar **tema claro/escuro** via `next-themes` (`ThemeProvider`
+      já existe em `components/theme-provider.tsx`) e ligar o toggle da aba
+      Aparência. (RF-CFG-03, RNF-04)
+- [ ] **0.5** Ocultar/remover do menu o item **Agenda** (fora do MVP) e configurar
+      base de testes (Vitest + RTL); garantir `pnpm lint` e `pnpm build` verdes.
 
-- [ ] **0.1** Padronizar a marca (decidir entre *VIP Academia* e *FitPro
-      Academia*) em sidebar, `layout.tsx` metadata e `manifest.json`.
-- [ ] **0.2** Centralizar os dados mockados em `lib/mock-data/` (extrair dos
-      componentes), criando **tipos TypeScript** (`lib/types.ts`) a partir do
-      modelo de dados do relatório. Isso desacopla UI de origem de dados.
-- [ ] **0.3** Criar camada de acesso a dados abstrata (`lib/data/*`) que hoje
-      lê dos mocks e amanhã chamará a API — UI passa a consumir só essa camada.
-- [ ] **0.4** Conectar o **tema claro/escuro** real via `next-themes`
-      (`ThemeProvider` já existe em `components/theme-provider.tsx`) e ligar o
-      toggle da aba Aparência (RNF-07, RF-CFG-07).
-- [ ] **0.5** Configurar testes (Vitest + React Testing Library) e um teste
-      smoke por página. Garantir `pnpm lint` e `pnpm build` verdes no CI.
-
-**Critério de aceite:** marca única; mocks centralizados e tipados; tema
-funcional; build/lint/testes passando no CI.
+**Aceite:** nome único; mocks centralizados e tipados; tema funcional; Agenda
+fora do menu; build/lint/testes passando.
 
 ---
 
 ## Fase 1 — Backend, Persistência e Camada de Dados
 
-**Meta:** dados reais, ainda sem multiusuário.
+- [ ] **1.1** Stack de dados **recomendada:** Next.js Route Handlers/Server
+      Actions + **Prisma** + **PostgreSQL** (Neon/Supabase), no mesmo repositório.
+- [ ] **1.2** Modelar o schema Prisma a partir do **modelo reduzido**
+      (User, Profile, Link, WorkoutPlan, Exercise, Assignment, WorkoutLog, ExerciseLog).
+- [ ] **1.3** Migrations + **seed** com os dados mockados atuais (telas idênticas,
+      agora vindas do banco).
+- [ ] **1.4** Implementar `lib/data/*` sobre a API/DB (substitui a versão mock da
+      Fase 0 sem alterar a UI).
+- [ ] **1.5** Validação de entrada com **zod** (já instalado) em todas as mutações.
 
-- [ ] **1.1** Escolher stack de dados. **Recomendado:** Next.js Route
-      Handlers/Server Actions + **Prisma** + **PostgreSQL** (ex.: Neon/Supabase),
-      mantendo tudo no mesmo repositório.
-- [ ] **1.2** Modelar o schema Prisma a partir da Seção 6 do relatório
-      (User, Gym, Trainer, Student, WorkoutPlan, Exercise, WorkoutLog,
-      ExerciseLog, Appointment, Notification).
-- [ ] **1.3** Criar migrations e um **seed** com os dados mockados atuais
-      (mantém a tela idêntica, agora vinda do banco).
-- [ ] **1.4** Implementar a camada `lib/data/*` sobre a API/DB (substitui a
-      implementação mock da Fase 0 sem mudar a UI).
-- [ ] **1.5** Validação de entrada com **zod** (já instalado) em todas as
-      mutações.
-
-**Critério de aceite:** todas as telas leem do banco; seed reproduz o estado
-atual; mutações validadas.
+**Aceite:** todas as telas leem do banco; seed reproduz o estado atual; mutações validadas.
 
 ---
 
-## Fase 2 — Autenticação e Autorização
+## Fase 2 — Autenticação e Papéis (profissional / aluno)
 
-**Meta:** multiusuário seguro com papéis.
+- [ ] **2.1** Auth (**Auth.js/NextAuth** ou similar): login, logout (ligar *Sair*
+      da sidebar), recuperação de senha. (RF-AUTH-01/02)
+- [ ] **2.2** Hash de senha (bcrypt/argon2) e proteção de rotas via middleware.
+      (RF-AUTH-04)
+- [ ] **2.3** Papéis **profissional** e **aluno** (RBAC); menu e ações renderizados
+      por papel; substituir o usuário fixo pela sessão. (RF-AUTH-03)
 
-- [ ] **2.1** Implementar auth (**Auth.js/NextAuth** ou similar) com login,
-      logout (ligar botão *Sair* da sidebar) e recuperação de senha. (RF-AUTH-01)
-- [ ] **2.2** Hashing de senha (bcrypt/argon2) e proteção de rotas via
-      middleware.
-- [ ] **2.3** Papéis **admin / trainer / aluno** (RBAC) e renderização
-      condicional do menu e das ações por papel. (RF-AUTH-02)
-- [ ] **2.4** Substituir o usuário fixo "Admin/Gerente" pelo usuário da sessão.
-- [ ] **2.5** Aba **Segurança** funcional (trocar senha, 2FA opcional, sessões
-      ativas reais). (RF-CFG-04)
-
-**Critério de aceite:** login/logout reais; rotas protegidas; menu por papel;
-troca de senha persistida.
+**Aceite:** login/logout reais; rotas protegidas; UI condicional ao papel.
 
 ---
 
-## Fase 3 — CRUDs dos Módulos Existentes
+## Fase 3 — Núcleo: Treinos + Atribuição + Progresso
 
-**Meta:** tornar funcionais as ações que hoje são apenas visuais.
+- [ ] **3.1 Profissional — CRUD:** criar/editar/excluir planos e exercícios
+      (séries, reps, descanso, músculo, vídeo, instruções). (RF-TRE-02/03)
+- [ ] **3.2 Atribuição:** profissional **atribui** um plano a um ou mais alunos
+      (`Assignment`); o aluno passa a ver só o que lhe foi atribuído.
+      (RF-TRE-04, RF-TRE-06)
+- [ ] **3.3 Aluno — execução:** "Iniciar Treino" gera `WorkoutLog`; conclusão de
+      exercícios persiste (`ExerciseLog`) e alimenta Histórico e Progresso reais;
+      reproduzir o vídeo (embed YouTube já presente). (RF-TRE-08/11/12/13/14)
+- [ ] **3.4 Profissional — acompanhamento:** ver o progresso dos seus alunos.
+      (RF-TRE-05)
 
-- [ ] **3.1 Treinos:** CRUD de planos e exercícios; "Iniciar Treino" gera um
-      `WorkoutLog`; conclusão de exercícios persiste e alimenta Histórico e
-      Progresso reais; reproduzir o vídeo (embed YouTube já presente nos dados).
-      (RF-TRE-09/10/11)
-- [ ] **3.2 Personal Trainers:** submissão do formulário de cadastro com
-      validação; ações *Agendar*, *Ver Perfil* e *Filtros*; CRUD completo.
-      (RF-PER-04/05/06/07)
-- [ ] **3.3 Agenda:** criar/editar/cancelar agendamentos; lista filtrada pelo
-      **dia selecionado** (corrigir RF-AGE-02); filtros por tipo/trainer; vínculo
-      com trainers e alunos reais. (RF-AGE-06/07/08/09)
-- [ ] **3.4 Configurações:** persistir Perfil, Academia e Notificações.
-      (RF-CFG-01/02/03/06)
-- [ ] **3.5 Dashboard:** calcular as métricas a partir de dados reais do usuário.
-      (RF-DASH-05)
-
-**Critério de aceite:** nenhum botão "morto"; toda ação persiste e reflete nas
-demais telas.
+**Aceite:** profissional cria e atribui; aluno executa; histórico e progresso
+refletem dados reais; nenhum botão "morto" no fluxo.
 
 ---
 
-## Fase 4 — Módulos Ausentes
+## Fase 4 — Vínculo Prof↔Aluno, Perfil e Home por Papel
 
-**Meta:** completar a cobertura funcional prevista.
+- [ ] **4.1 Roster do profissional:** lista dos seus alunos; acessar perfil do
+      aluno e atribuir treinos. (RF-VIN-01/02)
+- [ ] **4.2 Visão do aluno:** ver seu profissional (perfil/contato); cadastro de
+      profissional funcional. (RF-VIN-03/05)
+- [ ] **4.3 Configurações/Perfil:** persistir perfil e trocar senha. (RF-CFG-01/02/04)
+- [ ] **4.4 Home por papel:** aluno = meu progresso/treinos do dia; profissional =
+      meus alunos/atribuições. (RF-HOME-01/02)
 
-- [ ] **4.1 Módulo Alunos (`/alunos`):** listagem, busca, cadastro, perfil,
-      vínculo com trainer e plano de treino. Adicionar item na sidebar.
-      (RF-ALU-01)
-- [ ] **4.2 Módulo Relatórios (`/relatorios`):** relatórios gerenciais
-      (frequência, ocupação por horário, desempenho de trainers, evolução de
-      alunos) usando **recharts** (já instalado). Adicionar item na sidebar.
-      (RF-REL-01)
-
-**Critério de aceite:** ambos os módulos navegáveis, com dados reais e itens de
-menu visíveis conforme o papel.
+**Aceite:** vínculo funcional nos dois sentidos; perfil persiste; home enxuta por papel.
 
 ---
 
 ## Fase 5 — Qualidade, Conformidade e Lançamento
 
-**Meta:** prontidão para produção.
+- [ ] **5.1** Testes e2e (Playwright) dos fluxos críticos: login, criar treino,
+      atribuir, executar.
+- [ ] **5.2** Auditoria de **acessibilidade** (foco, labels, contraste, teclado). (RNF-03)
+- [ ] **5.3** **LGPD** mínima: política de privacidade, consentimento, exclusão de
+      dados pessoais. (RNF-08)
+- [ ] **5.4** Validar **PWA** (instalação, offline básico) e checklist de release.
 
-- [ ] **5.1** Cobertura de testes (unitários para a camada de dados; e2e com
-      Playwright para fluxos críticos — login, criar treino, agendar).
-- [ ] **5.2** Auditoria de **acessibilidade** (foco, labels, contraste,
-      navegação por teclado). (RNF-03)
-- [ ] **5.3** **i18n** real (botão de troca de idioma funcional). (RNF-04)
-- [ ] **5.4** **LGPD:** política de privacidade, consentimento, e gestão/
-      exclusão de dados pessoais de alunos. (RNF-12)
-- [ ] **5.5** Validar PWA (instalação, offline básico, screenshots do manifest).
-- [ ] **5.6** Observabilidade (erros + analytics) e checklist de release.
-
-**Critério de aceite:** fluxos críticos testados; sem bloqueios de
-acessibilidade; conformidade LGPD mínima; PWA validado.
+**Aceite:** fluxos críticos testados; sem bloqueios de acessibilidade; LGPD
+mínima; PWA validado.
 
 ---
 
-## Sequenciamento e Dependências
+## Sequenciamento
 
 ```
 Fase 0 ──> Fase 1 ──> Fase 2 ──> Fase 3 ──> Fase 4 ──> Fase 5
-(base)     (dados)    (auth)     (CRUDs)    (módulos)  (qualidade)
+(base)     (dados)    (auth)     (núcleo)   (vínculo)  (qualidade)
 ```
 
 - Fases **0 e 1** são pré-requisito de tudo.
-- **Fase 2** habilita segurança e papéis usados nas Fases 3–4.
-- **Fases 3 e 4** podem rodar parcialmente em paralelo após a Fase 2, por módulo.
+- **Fase 2** habilita os papéis usados nas Fases 3–4.
+- **Fase 3** é o coração do produto (atribuir → executar).
 
 ---
 
-## Decisões em Aberto (precisam de definição do produto)
+## Decisões em Aberto
 
-1. **Marca oficial:** *VIP Academia* ou *FitPro Academia*?
-2. **Arquitetura de usuários:** app único com papéis (recomendado) ou apps
-   separados admin/aluno?
-3. **Stack de backend/banco:** confirmar Prisma + PostgreSQL (Neon/Supabase) vs.
-   alternativa (Firebase, etc.).
-4. **Escopo do MVP:** quais módulos entram na primeira versão paga/lançável?
+1. **Nome oficial do produto** (substituir `[NOME_DO_APP]`).
+2. **Stack de backend/banco:** confirmar Prisma + PostgreSQL (Neon/Supabase).
+3. **Atribuição:** um aluno pode ter mais de um profissional? (afeta `Link`)
 
 ---
 
 ## Recomendação de MVP
 
-Para o primeiro lançamento utilizável, sugere-se:
+> **Fases 0 → 1 → 2 → 3 → 4 = app lançável.**
 
-> **Fases 0 → 1 → 2 → 3.1 (Treinos) → 3.3 (Agenda)**
-
-Isso entrega a jornada central (aluno acompanha treinos reais; academia gerencia
-agenda) com autenticação, deixando Relatórios, módulo Alunos completo e refinos
-para versões seguintes.
+Entrega a jornada central (profissional monta e atribui treinos; aluno executa e
+acompanha progresso) com autenticação por papel. A **Fase 5** (testes e2e, LGPD,
+PWA) refina para produção. Agenda, Relatórios e gestão administrativa ficam para
+versões seguintes.

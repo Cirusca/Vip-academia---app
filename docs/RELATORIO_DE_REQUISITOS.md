@@ -1,26 +1,32 @@
-# Relatório de Requisitos — VIP Academia
+# Relatório de Requisitos — `[NOME_DO_APP]` (App de Treino)
 
-> **Versão:** 1.0  
+> **Versão:** 2.0 (escopo reduzido — MVP)  
 > **Data:** 27/06/2026  
 > **Status do produto:** Protótipo de interface (UI) navegável, sem backend  
 > **Branch:** `claude/requirements-report-plan-bz1qad`
+>
+> **Mudança nesta versão:** o escopo foi **reduzido** de um sistema amplo de
+> gestão de academia para um **app de treino** focado em **aluno + profissional**,
+> modelo **B2B2C**, para academias **low-mid**. Os módulos *Agenda*, *Relatórios*
+> e o *painel administrativo da academia* saíram do MVP (ver Seção 7).
 
 ---
 
 ## 1. Visão Geral
 
-O **VIP Academia** (também referido no código como *FitPro Academia*) é um sistema de
-gestão de academia construído como aplicação web responsiva com suporte a PWA
-(instalável em dispositivos móveis). O objetivo do produto é centralizar a gestão
-de **treinos**, **personal trainers**, **agenda de compromissos** e
-**configurações** da academia, oferecendo tanto uma visão administrativa quanto a
-experiência do aluno acompanhando seus treinos.
+`[NOME_DO_APP]` é um **app de treino** para academias de porte **low-mid**. O
+modelo é **B2B2C**: a academia/profissional usa a ferramenta para **montar e
+atribuir treinos**, e o **aluno** usa o app para **executar os treinos e
+acompanhar seu progresso**.
 
-No estado atual, o projeto é um **protótipo de front-end totalmente funcional do
-ponto de vista visual e de navegação**, porém **todos os dados são mockados
-(fixos em código)** e nenhuma ação persiste. Este relatório documenta o que já
-existe, o que está implícito/planejado e o que falta para o produto se tornar
-operacional.
+A proposta de valor é simples e enxuta — sem o peso de um ERP de academia:
+o profissional cria planos de treino e os atribui aos seus alunos; o aluno
+recebe, executa, marca exercícios concluídos e vê sua evolução.
+
+> **Marca:** o nome oficial ainda será definido. Ao longo dos documentos usa-se
+> o placeholder **`[NOME_DO_APP]`**. Hoje o código tem inconsistência (*VIP
+> Academia* na sidebar vs *FitPro Academia* nos metadados/manifest) — será
+> unificado quando o nome for escolhido (ver `PLANO_DE_IMPLEMENTACAO.md`, Fase 0).
 
 ### 1.1. Stack Tecnológica Atual
 
@@ -36,119 +42,105 @@ operacional.
 | Formulários | react-hook-form + zod | 7.54 / 3.24 |
 | Datas | date-fns | 4.1.0 |
 | PWA | next-pwa + manifest.json | 5.6.0 |
-| Analytics | @vercel/analytics | 1.6.1 |
+| Tema | next-themes (instalado, não conectado) | 0.4.6 |
 | Gerenciador de pacotes | pnpm | — |
 
-### 1.2. Observações Importantes do Estado Atual
+### 1.2. Observações do Estado Atual
 
-- ⚠️ **Inconsistência de marca:** a sidebar exibe *"VIP Academia"*, enquanto os
-  metadados (`app/layout.tsx`) e o `manifest.json` usam *"FitPro Academia"*.
-  É necessário padronizar o nome oficial do produto.
-- ⚠️ **Sem persistência:** todos os dados (treinos, trainers, agendamentos,
-  perfil) são constantes no código com comentários `TODO: Integrar com API`.
-- ⚠️ **Sem autenticação:** o usuário "Admin / Gerente" é fixo na sidebar; o botão
-  *Sair* não tem ação.
-- ⚠️ **Módulos planejados ausentes:** os comentários em `app-layout.tsx`
-  mencionam itens de menu *Alunos* e *Relatórios* que **não existem** como rotas.
+- ⚠️ **Sem persistência:** todos os dados (treinos, profissionais, perfil) são
+  constantes no código, com comentários `TODO: Integrar com API`.
+- ⚠️ **Sem autenticação:** usuário fixo "Admin/Gerente" na sidebar; *Sair* sem ação.
+- ⚠️ **Marca inconsistente:** *VIP* vs *FitPro* (a resolver na escolha do nome).
 - ⚠️ **Sem testes** automatizados e **sem camada de dados** (API/banco).
+- ℹ️ A rota `app/agenda/` ainda existe no código, mas está **fora do MVP**
+  (será ocultada/removida na etapa de implementação).
 
 ---
 
 ## 2. Perfis de Usuário (Personas)
 
-O sistema mistura, hoje, duas experiências no mesmo app. Os requisitos abaixo
-assumem os seguintes perfis:
+O escopo reduzido define **dois papéis** (RBAC). O gestor/admin da academia
+**não faz parte do MVP**.
 
 | Persona | Descrição | Necessidades principais |
 |---|---|---|
-| **Administrador / Gerente** | Gerencia a academia, equipe e configurações | Cadastrar/gerir trainers, ver métricas globais, configurar a academia |
-| **Personal Trainer** | Profissional que atende alunos | Gerir agenda, ver seus alunos, montar treinos |
-| **Aluno** | Cliente da academia | Ver e executar seus treinos, acompanhar progresso, agendar |
+| **Profissional** (personal/instrutor) | Monta treinos e acompanha alunos | Criar/editar treinos, **atribuir** a alunos, ver progresso dos seus alunos |
+| **Aluno** | Cliente que treina | Ver treinos atribuídos, executar, marcar exercícios, acompanhar histórico e progresso |
 
-> **Decisão pendente:** definir se haverá um único app com papéis (RBAC) ou apps
-> separados (admin vs. aluno). O protótipo atual sugere um único app com papéis.
+**Fluxo central (B2B2C):**
+`Profissional cria treino → atribui ao aluno → aluno executa e registra progresso → profissional acompanha`.
 
 ---
 
 ## 3. Requisitos Funcionais (RF)
 
-Legenda de status:
-**✅ Implementado (UI)** = existe na interface, com dados mockados ·
-**🟡 Parcial** = existe visualmente mas não funciona de fato ·
-**❌ Ausente** = não existe.
+Legenda: **✅ Implementado (UI)** = existe na interface, com dados mockados ·
+**🟡 Parcial** = existe visualmente mas não funciona · **❌ Ausente**.
 
-### 3.1. Módulo: Dashboard (`/`)
+### 3.1. Autenticação e Papéis
 
 | ID | Requisito | Status |
 |---|---|---|
-| RF-DASH-01 | Exibir cartões de métricas (treinos na semana, duração média, calorias, sequência) | ✅ UI (mock) |
-| RF-DASH-02 | Exibir gráfico de atividade/duração dos treinos | ✅ UI (mock) |
-| RF-DASH-03 | Exibir atividades recentes | ✅ UI (mock) |
-| RF-DASH-04 | Exibir lista resumida de treinos com acesso rápido | ✅ UI (mock) |
-| RF-DASH-05 | Calcular métricas a partir de dados reais do usuário | ❌ |
+| RF-AUTH-01 | Login / logout (ligar botão *Sair* da sidebar) | ❌ |
+| RF-AUTH-02 | Recuperação de senha | ❌ |
+| RF-AUTH-03 | Papéis **profissional** e **aluno** (RBAC), com menu e ações condicionais ao papel | ❌ |
+| RF-AUTH-04 | Proteção de rotas por sessão/papel | ❌ |
 
-### 3.2. Módulo: Treinos (`/treinos`)
+### 3.2. Treinos + Progresso (núcleo)
 
-| ID | Requisito | Status |
-|---|---|---|
-| RF-TRE-01 | Listar planos de treino (A, B, C) com dia, duração, calorias e nº de exercícios | ✅ UI (mock) |
-| RF-TRE-02 | Expandir/colapsar exercícios de cada treino | ✅ UI |
-| RF-TRE-03 | Marcar exercício como concluído (com barra de progresso %) | 🟡 (só estado local da sessão) |
-| RF-TRE-04 | Exibir detalhes do exercício (séries, reps, descanso, músculo) | ✅ UI (mock) |
-| RF-TRE-05 | Abrir modal com vídeo demonstrativo e instruções | 🟡 (modal é placeholder, vídeo não toca) |
-| RF-TRE-06 | Aba **Histórico** de treinos realizados | ✅ UI (mock) |
-| RF-TRE-07 | Aba **Progresso** com métricas de evolução | ✅ UI (mock) |
-| RF-TRE-08 | Botão "Iniciar Treino" / "Novo Treino" | 🟡 (sem ação) |
-| RF-TRE-09 | Criar/editar/excluir planos de treino (CRUD) | ❌ |
-| RF-TRE-10 | Persistir conclusão de exercícios e gerar histórico real | ❌ |
-| RF-TRE-11 | Reproduzir o vídeo real (YouTube embed já presente nos dados) | ❌ |
-
-### 3.3. Módulo: Personal Trainers (`/personal`)
+**Profissional:**
 
 | ID | Requisito | Status |
 |---|---|---|
-| RF-PER-01 | Listar trainers com avatar, experiência, especialidades e disponibilidade | ✅ UI (mock) |
-| RF-PER-02 | Exibir métricas por trainer (avaliação, nº de alunos, certificações) | ✅ UI (mock) |
-| RF-PER-03 | Buscar trainer por nome ou especialidade | ✅ (filtra mock) |
-| RF-PER-04 | Formulário de cadastro de novo personal (nome, email, telefone, CREF, etc.) | 🟡 (formulário sem submissão) |
-| RF-PER-05 | Filtros avançados (botão "Filtros") | ❌ (botão sem ação) |
-| RF-PER-06 | Ações "Agendar" e "Ver Perfil" | ❌ (sem ação) |
-| RF-PER-07 | CRUD completo de trainers com persistência | ❌ |
+| RF-TRE-01 | Listar planos de treino com dia, duração, calorias e nº de exercícios | ✅ UI (mock) |
+| RF-TRE-02 | CRUD de planos de treino | ❌ |
+| RF-TRE-03 | CRUD de exercícios (séries, reps, descanso, músculo, vídeo, instruções) | ❌ |
+| RF-TRE-04 | **Atribuir** um plano a um ou mais alunos | ❌ |
+| RF-TRE-05 | Acompanhar o progresso dos seus alunos | ❌ |
 
-### 3.4. Módulo: Agenda (`/agenda`)
+**Aluno:**
 
 | ID | Requisito | Status |
 |---|---|---|
-| RF-AGE-01 | Calendário mensal navegável (mês anterior/próximo) | ✅ UI |
-| RF-AGE-02 | Selecionar dia e listar agendamentos do dia | 🟡 (lista é fixa, não muda por dia) |
-| RF-AGE-03 | Exibir agendamentos com tipo, status, cliente, trainer, local | ✅ UI (mock) |
-| RF-AGE-04 | Legenda por tipo (treino, avaliação, reunião) | ✅ UI |
-| RF-AGE-05 | Cartões de resumo (hoje, semana, mês, pendentes) | ✅ UI (mock) |
-| RF-AGE-06 | Criar novo agendamento ("Novo Agendamento") | ❌ (botão sem ação) |
-| RF-AGE-07 | Editar/cancelar agendamento | ❌ (botão "Editar" sem ação) |
-| RF-AGE-08 | Filtrar agendamentos por tipo/trainer | ❌ |
-| RF-AGE-09 | Vincular agendamentos a trainers e alunos reais | ❌ |
+| RF-TRE-06 | Ver treinos **atribuídos** a ele | 🟡 (lista existe, mas não é "atribuída") |
+| RF-TRE-07 | Expandir/colapsar exercícios de cada treino | ✅ UI |
+| RF-TRE-08 | Marcar exercício como concluído (com barra de progresso %) | 🟡 (só estado local da sessão) |
+| RF-TRE-09 | Ver detalhes do exercício (séries, reps, descanso, músculo) | ✅ UI (mock) |
+| RF-TRE-10 | Modal com vídeo demonstrativo e instruções | 🟡 (modal placeholder; embed YouTube já nos dados) |
+| RF-TRE-11 | Reproduzir o vídeo real | ❌ |
+| RF-TRE-12 | Iniciar treino → gera registro (`WorkoutLog`) | 🟡 (botão sem ação) |
+| RF-TRE-13 | Aba **Histórico** real de treinos realizados | 🟡 (UI mock) |
+| RF-TRE-14 | Aba **Progresso** com métricas reais (treinos, calorias, tempo) | 🟡 (UI mock) |
 
-### 3.5. Módulo: Configurações (`/configuracoes`)
-
-| ID | Requisito | Status |
-|---|---|---|
-| RF-CFG-01 | Aba **Perfil** (dados pessoais, foto) | 🟡 (formulário sem submissão) |
-| RF-CFG-02 | Aba **Academia** (nome, endereço, horários, contato) | 🟡 (sem submissão) |
-| RF-CFG-03 | Aba **Notificações** (email, push, SMS, marketing) | 🟡 (toggles só em estado local) |
-| RF-CFG-04 | Aba **Segurança** (trocar senha, 2FA, sessões ativas) | 🟡 (sem backend) |
-| RF-CFG-05 | Aba **Aparência** (tema claro/escuro, idioma) | 🟡 (toggle de tema não aplica de fato) |
-| RF-CFG-06 | Persistir preferências do usuário | ❌ |
-| RF-CFG-07 | Aplicar tema claro/escuro de verdade (next-themes já instalado) | ❌ |
-
-### 3.6. Módulos Planejados / Ausentes
+### 3.3. Vínculo Profissional ↔ Aluno
 
 | ID | Requisito | Status |
 |---|---|---|
-| RF-ALU-01 | **Módulo Alunos:** cadastro, listagem, perfil e planos de cada aluno | ❌ (mencionado em comentários, sem rota) |
-| RF-REL-01 | **Módulo Relatórios:** relatórios gerenciais (frequência, receita, ocupação) | ❌ (mencionado em comentários, sem rota) |
-| RF-AUTH-01 | **Autenticação:** login, logout, recuperação de senha | ❌ |
-| RF-AUTH-02 | **Autorização (RBAC):** papéis admin / trainer / aluno | ❌ |
+| RF-VIN-01 | Profissional vê **roster** (lista dos seus alunos) | ❌ (hoje há lista de *trainers*, não de alunos) |
+| RF-VIN-02 | Profissional acessa o perfil de um aluno e atribui treinos | ❌ |
+| RF-VIN-03 | Aluno vê seu **profissional** (perfil/contato) | 🟡 (lista de trainers existe como UI mock) |
+| RF-VIN-04 | Buscar por nome/especialidade | ✅ (filtra mock) |
+| RF-VIN-05 | Cadastro de profissional (nome, email, telefone, CREF, especialidades) | 🟡 (formulário sem submissão) |
+
+### 3.4. Configurações / Perfil
+
+| ID | Requisito | Status |
+|---|---|---|
+| RF-CFG-01 | Editar perfil (nome, email, telefone, foto) | 🟡 (sem submissão) |
+| RF-CFG-02 | Trocar senha | 🟡 (sem backend) |
+| RF-CFG-03 | Tema claro/escuro funcional (next-themes já instalado) | ❌ |
+| RF-CFG-04 | Persistir preferências do usuário | ❌ |
+
+### 3.5. Início (Home) por Papel
+
+| ID | Requisito | Status |
+|---|---|---|
+| RF-HOME-01 | **Aluno:** resumo do próprio progresso e treinos do dia | 🟡 (dashboard atual é genérico/admin, mock) |
+| RF-HOME-02 | **Profissional:** resumo dos seus alunos e atribuições | ❌ |
+
+> A home **não** é um painel administrativo: é uma visão enxuta por papel,
+> reaproveitando dados de Treinos/Progresso. As métricas globais de academia
+> ficam **fora do MVP**.
 
 ---
 
@@ -156,73 +148,81 @@ Legenda de status:
 
 | ID | Categoria | Requisito | Status |
 |---|---|---|---|
-| RNF-01 | **Responsividade** | Layout adaptável mobile/desktop (sidebar vira drawer) | ✅ |
-| RNF-02 | **PWA** | App instalável com manifest e ícones | ✅ (config presente) |
-| RNF-03 | **Acessibilidade** | `aria-label`, `aria-current`, navegação por teclado | 🟡 (parcial, presente em vários pontos) |
-| RNF-04 | **i18n** | Interface em pt-BR; troca de idioma | 🟡 (apenas pt-BR; botão "Alterar" sem ação) |
-| RNF-05 | **SEO** | Metadados, Open Graph, keywords | ✅ |
-| RNF-06 | **Performance** | Otimização de fontes (next/font), code splitting do App Router | ✅ (padrão Next) |
-| RNF-07 | **Tema** | Suporte a claro/escuro (next-themes instalado) | ❌ (não conectado) |
-| RNF-08 | **Persistência** | Banco de dados e API | ❌ |
-| RNF-09 | **Segurança** | Auth, hashing de senha, proteção de rotas, 2FA | ❌ |
+| RNF-01 | **Responsividade** | Layout mobile/desktop (sidebar vira drawer) | ✅ |
+| RNF-02 | **PWA** | App instalável (manifest + ícones) | ✅ (config presente) |
+| RNF-03 | **Acessibilidade** | `aria-label`, `aria-current`, navegação por teclado | 🟡 (parcial) |
+| RNF-04 | **Tema** | Claro/escuro real (next-themes) | ❌ (não conectado) |
+| RNF-05 | **Persistência** | Banco de dados + API | ❌ |
+| RNF-06 | **Segurança** | Auth, hash de senha, proteção de rotas | ❌ |
+| RNF-07 | **Qualidade** | Lint configurado; testes automatizados | 🟡 (lint sim; testes não) |
+| RNF-08 | **LGPD** | Tratamento de dados pessoais de alunos | ❌ |
+| RNF-09 | **i18n** | Interface em pt-BR | ✅ (apenas pt-BR no MVP) |
 | RNF-10 | **Observabilidade** | Analytics (Vercel) em produção | ✅ (básico) |
-| RNF-11 | **Qualidade** | Lint configurado; testes automatizados | 🟡 (lint sim; testes não) |
-| RNF-12 | **LGPD/Privacidade** | Tratamento de dados pessoais de alunos | ❌ |
+
+> **Reduções vs. v1.0:** notificações multicanais (email/push/SMS/marketing), 2FA
+> e integrações externas saíram do MVP.
 
 ---
 
-## 5. Regras de Negócio Identificadas
+## 5. Regras de Negócio
 
-Extraídas do comportamento atual do protótipo:
-
-- **RN-01:** O progresso de um treino é `(exercícios concluídos / total) × 100`,
+- **RN-01:** Progresso de um treino = `(exercícios concluídos / total) × 100`,
   arredondado (`workout-details.tsx`).
-- **RN-02:** Um exercício pode ser marcado/desmarcado como concluído; o estado
-  inicial pode vir pré-marcado (`completed: true`).
-- **RN-03:** Trainers têm status de disponibilidade (`Disponível` / `Ocupado`)
-  que afeta a captação de novos alunos.
-- **RN-04:** Agendamentos possuem **tipo** (treino, avaliação, reunião) e
-  **status** (confirmado, pendente, cancelado), cada um com código de cor.
-- **RN-05:** Trainers exigem **CREF** (registro profissional) no cadastro.
-- **RN-06:** Horário de funcionamento da academia é definido por abertura/fechamento.
+- **RN-02:** Um exercício pode ser marcado/desmarcado como concluído.
+- **RN-03:** Um **plano de treino** é criado por um **profissional** e pode ser
+  **atribuído** a um ou mais **alunos** (relação via `Assignment`).
+- **RN-04:** Um aluno só vê treinos **atribuídos** a ele.
+- **RN-05:** Profissionais exigem **CREF** no cadastro.
+- **RN-06:** Cada aluno está vinculado a um (ou mais) profissional via `Link`.
 
 ---
 
-## 6. Modelo de Dados Proposto
-
-Derivado das estruturas mockadas. Servirá de base para o schema do banco.
+## 6. Modelo de Dados (reduzido)
 
 ```
-User            { id, name, email, phone, passwordHash, role(admin|trainer|aluno), avatarUrl, createdAt }
-Gym             { id, name, address, phone, email, openTime, closeTime, logoUrl }
-Trainer         { id, userId, cref, specialties[], rating, experienceYears, available, certifications[] }
-Student (Aluno) { id, userId, plan, trainerId?, status, joinedAt }
-WorkoutPlan     { id, ownerId, name, day, estDuration, estCalories, level, createdAt }
-Exercise        { id, workoutPlanId, name, sets, reps, rest, muscle, videoUrl, instructions, order }
-WorkoutLog      { id, studentId, workoutPlanId, date, durationMin, caloriesBurned }
-ExerciseLog     { id, workoutLogId, exerciseId, completed }
-Appointment     { id, title, type, status, date, time, durationMin, studentId, trainerId, location }
-Notification    { id, userId, channelPrefs{email,push,sms,marketing} }
+User       { id, name, email, passwordHash, role(profissional|aluno), avatarUrl }
+Profile    { userId, phone, prefs(theme), (profissional: cref, specialties[], bio) }
+Link       { professionalId, alunoId, status }            # vínculo profissional ↔ aluno
+WorkoutPlan{ id, createdBy(professionalId), name, day, estDuration, estCalories, level }
+Exercise   { id, workoutPlanId, name, sets, reps, rest, muscle, videoUrl, instructions, order }
+Assignment { id, workoutPlanId, alunoId, assignedBy, status, assignedAt }
+WorkoutLog { id, alunoId, workoutPlanId, date, durationMin, caloriesBurned }
+ExerciseLog{ id, workoutLogId, exerciseId, completed }
 ```
+
+> **Removidos do modelo amplo (v1.0):** `Gym`, `Appointment`, `Notification`
+> multicanal — pertencem a escopos futuros.
 
 ---
 
-## 7. Lacunas e Riscos
+## 7. Fora do Escopo (versões futuras)
+
+Itens conscientemente **adiados** para manter o MVP enxuto:
+
+- 📅 **Agenda / agendamento** de sessões (rota `app/agenda/` será ocultada).
+- 📊 **Relatórios gerenciais** (frequência, ocupação, receita).
+- 🏢 **Painel administrativo da academia** (gestão da unidade, horários, multi-academia).
+- 🔔 **Notificações** SMS/marketing, **2FA**, **integrações** externas.
+- 📈 **Dashboard administrativo** com métricas globais.
+- 🌐 **i18n** multi-idioma (MVP só pt-BR).
+
+---
+
+## 8. Lacunas e Riscos (no escopo reduzido)
 
 | # | Lacuna / Risco | Impacto | Severidade |
 |---|---|---|---|
-| 1 | Ausência total de backend e persistência | Produto não usável em produção | 🔴 Alta |
-| 2 | Sem autenticação/autorização | Bloqueia multi-usuário e segurança | 🔴 Alta |
-| 3 | Inconsistência de marca (VIP vs FitPro) | Confusão de identidade | 🟠 Média |
-| 4 | Módulos Alunos e Relatórios ausentes | Cobertura funcional incompleta | 🟠 Média |
+| 1 | Ausência de backend e persistência | Produto não usável | 🔴 Alta |
+| 2 | Sem auth e papéis (profissional/aluno) | Bloqueia o fluxo de atribuição | 🔴 Alta |
+| 3 | Atribuição treino→aluno inexistente (núcleo do produto) | Sem isso não há MVP | 🔴 Alta |
+| 4 | Nome do produto indefinido (VIP vs FitPro) | Identidade/branding | 🟠 Média |
 | 5 | Sem testes automatizados | Risco de regressão | 🟠 Média |
-| 6 | Tema claro/escuro não funcional | Expectativa de UX não atendida | 🟡 Baixa |
-| 7 | LGPD não endereçada | Risco legal ao tratar dados de alunos | 🟠 Média |
-| 8 | Formulários sem validação/submissão real | Não capturam dados | 🟠 Média |
+| 6 | LGPD não endereçada | Risco legal (dados de alunos) | 🟠 Média |
+| 7 | Tema claro/escuro não funcional | Expectativa de UX | 🟡 Baixa |
 
 ---
 
-## 8. Próximos Passos
+## 9. Próximos Passos
 
-O plano de implementação detalhado, faseado e com critérios de aceite está em
+Plano faseado, com critérios de aceite e recomendação de MVP, em
 [`PLANO_DE_IMPLEMENTACAO.md`](./PLANO_DE_IMPLEMENTACAO.md).
