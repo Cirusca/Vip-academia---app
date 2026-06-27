@@ -166,6 +166,9 @@ Legenda: **✅ Implementado (UI)** = existe na interface, com dados mockados ·
 
 ## 5. Regras de Negócio
 
+> 📖 **Regras completas e numeradas (testáveis) em
+> [`REGRAS_DE_NEGOCIO.md`](./REGRAS_DE_NEGOCIO.md).** Abaixo, um resumo.
+
 - **RN-01:** Progresso de um treino = `(exercícios concluídos / total) × 100`,
   arredondado (`workout-details.tsx`).
 - **RN-02:** Um exercício pode ser marcado/desmarcado como concluído.
