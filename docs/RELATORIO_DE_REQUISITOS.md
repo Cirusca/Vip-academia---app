@@ -109,7 +109,7 @@ Legenda: **✅ Implementado (UI)** = existe na interface, com dados mockados ·
 | ID | Requisito | Status |
 |---|---|---|
 | RF-AUTH-01 | Login / logout (ligar botão *Sair* da sidebar) | ❌ |
-| RF-AUTH-02 | Recuperação de senha | ❌ |
+| RF-AUTH-02 | Recuperação de senha — **reset manual** pelo profissional/admin no MVP (sem e-mail; self-service por e-mail fica pós-MVP) | ❌ |
 | RF-AUTH-03 | Papéis **profissional** e **aluno** (RBAC), com menu e ações condicionais ao papel | ❌ |
 | RF-AUTH-04 | Proteção de rotas por sessão/papel | ❌ |
 

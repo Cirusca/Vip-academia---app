@@ -92,10 +92,10 @@ verdes SEM flags de supressão**; CI rodando em PR; decisão de PWA registrada.
 - [ ] **1.3 Auth:** login, logout (ligar *Sair* da sidebar), papéis (RBAC), hash
       (argon2/bcrypt), proteção de rotas por middleware, usuário da sessão no lugar
       do fixo. (RF-AUTH-01/03/04)
-- [ ] **1.4 Recuperação de senha:** integrar **provedor de e-mail transacional**
-      (Resend/SendGrid) — dependência externa com custo e secret; **ou** cortar do
-      MVP (reset manual) e registrar como débito. Aceite: e-mail de reset chega em
-      < 2 min em staging. (RF-AUTH-02)
+- [ ] **1.4 Recuperação de senha — RESET MANUAL (decidido):** no MVP **não** há
+      e-mail transacional. O profissional/admin redefine a senha do aluno (gera
+      senha temporária / força troca no próximo login). Zero dependência externa,
+      custo ou secret. Self-service por e-mail fica como débito pós-MVP. (RF-AUTH-02)
 - [ ] **1.5 1ª fatia fim-a-fim:** profissional autenticado **cria um WorkoutPlan**
       que é **persistido e lido** do banco numa tela (já via `lib/data/*` real).
       Validação com **zod** (já instalado). Seed mínimo com hash.
