@@ -19,7 +19,11 @@ import { assertCan } from "@/lib/auth/assertCan"
 import { NotFoundError } from "@/lib/auth/errors"
 import { db, tenantWhere } from "@/lib/data/_scope"
 import { MAX_PLANS_PER_PROFESSIONAL } from "@/lib/validation/limits"
-import type { CreateWorkoutPlanInput } from "@/lib/validation/workoutPlan"
+import type {
+  CreateWorkoutPlanInput,
+  UpdateWorkoutPlanInput,
+  DeleteWorkoutPlanInput,
+} from "@/lib/validation/workoutPlan"
 import { Prisma } from "@/lib/generated/prisma/client"
 import { AssignmentStatus, WorkoutPlanStatus } from "@/lib/generated/prisma/enums"
 
@@ -215,4 +219,81 @@ export async function createWorkoutPlan(
     select: { id: true },
   })
   return created
+}
+
+/**
+ * Atualiza metadados e/ou exercícios de um plano (RN-PLA-03).
+ * Re-busca escopada por gymId antes de escrever (anti-IDOR).
+ * Se `input.exercises` for fornecido, SUBSTITUI todos (deleteMany + create).
+ * `order` é re-atribuído 1-based pelo servidor.
+ */
+export async function updateWorkoutPlan(
+  session: SessionUser,
+  input: UpdateWorkoutPlanInput,
+): Promise<WorkoutPlan> {
+  const plan = await db.workoutPlan.findFirst({
+    where: tenantWhere(session, { id: input.workoutPlanId, status: WorkoutPlanStatus.ativo }),
+    select: { id: true, gymId: true, createdBy: true },
+  })
+  if (!plan) throw new NotFoundError()
+  assertCan(session, "workoutPlan:update", { gymId: plan.gymId, createdBy: plan.createdBy })
+
+  const exercisesUpdate =
+    input.exercises !== undefined
+      ? {
+          deleteMany: {},
+          create: input.exercises.map((ex, i) => ({
+            name: ex.name,
+            sets: ex.sets,
+            reps: ex.reps,
+            rest: ex.rest,
+            muscle: ex.muscle,
+            videoUrl: ex.videoUrl,
+            instructions: ex.instructions,
+            order: i + 1,
+          })),
+        }
+      : undefined
+
+  const updated = await db.workoutPlan.update({
+    where: { id: plan.id },
+    data: {
+      ...(input.name !== undefined && { name: input.name }),
+      ...(input.day !== undefined && { day: input.day }),
+      ...(input.estDuration !== undefined && { estDuration: input.estDuration }),
+      ...(input.estCalories !== undefined && { estCalories: input.estCalories }),
+      ...(input.level !== undefined && { level: input.level }),
+      ...(exercisesUpdate && { exercises: exercisesUpdate }),
+    },
+    select: planViewSelect,
+  })
+  return toView(updated)
+}
+
+/**
+ * Soft-delete de plano: status → inativo, deletedAt → now() (RN-PLA-08).
+ * Transação atômica: pausa Assignments ativas deste plano (cascade).
+ * Plano já inativo → NotFoundError (busca filtra status=ativo).
+ */
+export async function deleteWorkoutPlan(
+  session: SessionUser,
+  input: DeleteWorkoutPlanInput,
+): Promise<void> {
+  const plan = await db.workoutPlan.findFirst({
+    where: tenantWhere(session, { id: input.workoutPlanId, status: WorkoutPlanStatus.ativo }),
+    select: { id: true, gymId: true, createdBy: true },
+  })
+  if (!plan) throw new NotFoundError()
+  assertCan(session, "workoutPlan:delete", { gymId: plan.gymId, createdBy: plan.createdBy })
+
+  await db.$transaction([
+    db.assignment.updateMany({
+      where: { workoutPlanId: plan.id, gymId: session.gymId, status: AssignmentStatus.ativa },
+      data: { status: AssignmentStatus.pausada },
+    }),
+    db.workoutPlan.update({
+      where: { id: plan.id },
+      data: { status: WorkoutPlanStatus.inativo, deletedAt: new Date() },
+    }),
+  ])
 }
