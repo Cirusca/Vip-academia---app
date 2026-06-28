@@ -1,51 +1,46 @@
 import type { NextAuthConfig } from "next-auth"
 import type { Role } from "@/lib/generated/prisma/enums"
 
-/**
- * Claims que carimbamos no JWT (e relemos na sessão). Tipamos explicitamente
- * porque a interface `JWT` do @auth/core não é augmentável por nome no pnpm.
- */
 type TokenClaims = {
   userId?: string
   gymId?: string
   roles?: Role[]
+  mustChangePassword?: boolean
 }
 
-/**
- * Configuração EDGE-SAFE do Auth.js v5 (sem Prisma/bcrypt) — usada pelo `proxy.ts`
- * (middleware no Edge). Os provedores reais (Credentials + bcrypt + Prisma) e o
- * adapter ficam em `auth.ts` (Node), que faz spread desta config.
- *
- * Decisão (REVISAO_PLANO_E_SEGURANCA 1.3): `session.strategy: "jwt"` — roles/gymId
- * viajam no TOKEN, permitindo o gate no Edge sem acesso ao banco.
- */
 export const authConfig = {
-  // Self-host: confiar no Host da requisição (em Vercel isto é automático). Sem
-  // isto o Auth.js recusa hosts não-padrão com UntrustedHost.
   trustHost: true,
   pages: { signIn: "/login" },
   session: { strategy: "jwt" },
-  providers: [], // reais definidos em auth.ts (Node)
+  providers: [],
   callbacks: {
-    // Gate de rotas (roda no Edge via proxy.ts). Protege tudo, exceto /login.
     authorized({ auth, request }) {
       const isLoggedIn = !!auth?.user
-      const isOnLogin = request.nextUrl.pathname.startsWith("/login")
+      const path = request.nextUrl.pathname
+      const isOnLogin = path.startsWith("/login")
+      const isOnTrocarSenha = path.startsWith("/trocar-senha")
 
-      if (isOnLogin) {
-        if (isLoggedIn) return Response.redirect(new URL("/", request.nextUrl))
-        return true
+      if (!isLoggedIn) {
+        if (isOnLogin) return true
+        return false
       }
-      return isLoggedIn // demais rotas exigem sessão (Auth.js redireciona ao signIn)
+
+      if (isOnLogin) return Response.redirect(new URL("/", request.nextUrl))
+
+      if (auth.user.mustChangePassword && !isOnTrocarSenha) {
+        return Response.redirect(new URL("/trocar-senha", request.nextUrl))
+      }
+
+      return true
     },
 
-    // gymId/roles SEMPRE do servidor → token (nunca do cliente). RN-SEG / handoff §5.
     jwt({ token, user }) {
       if (user) {
         const claims = token as TokenClaims
         claims.userId = user.id
         claims.gymId = user.gymId
         claims.roles = user.roles
+        claims.mustChangePassword = user.mustChangePassword
       }
       return token
     },
@@ -56,6 +51,7 @@ export const authConfig = {
         session.user.id = claims.userId
         session.user.gymId = claims.gymId ?? ""
         session.user.roles = claims.roles ?? []
+        session.user.mustChangePassword = claims.mustChangePassword ?? false
       }
       return session
     },

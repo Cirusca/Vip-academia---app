@@ -21,9 +21,9 @@ import type { SessionUser } from "@/lib/auth/session"
 const GYM_A = "it-gymA"
 const GYM_B = "it-gymB"
 
-const profA: SessionUser = { userId: "it-profA", gymId: GYM_A, roles: ["profissional"] }
-const alunoA: SessionUser = { userId: "it-alunoA", gymId: GYM_A, roles: ["aluno"] }
-const profB: SessionUser = { userId: "it-profB", gymId: GYM_B, roles: ["profissional"] }
+const profA: SessionUser = { userId: "it-profA", gymId: GYM_A, roles: ["profissional"], mustChangePassword: false }
+const alunoA: SessionUser = { userId: "it-alunoA", gymId: GYM_A, roles: ["aluno"], mustChangePassword: false }
+const profB: SessionUser = { userId: "it-profB", gymId: GYM_B, roles: ["profissional"], mustChangePassword: false }
 
 async function cleanup() {
   await db.workoutPlan.deleteMany({ where: { gymId: { in: [GYM_A, GYM_B] } } })

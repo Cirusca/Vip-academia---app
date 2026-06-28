@@ -3,8 +3,8 @@ import { assertCan, type OwnedResource } from "@/lib/auth/assertCan"
 import { NotFoundError } from "@/lib/auth/errors"
 import type { SessionUser } from "@/lib/auth/session"
 
-const prof: SessionUser = { userId: "u-prof", gymId: "gym-1", roles: ["profissional"] }
-const aluno: SessionUser = { userId: "u-aluno", gymId: "gym-1", roles: ["aluno"] }
+const prof: SessionUser = { userId: "u-prof", gymId: "gym-1", roles: ["profissional"], mustChangePassword: false }
+const aluno: SessionUser = { userId: "u-aluno", gymId: "gym-1", roles: ["aluno"], mustChangePassword: false }
 
 const ownPlan: OwnedResource = { gymId: "gym-1", createdBy: "u-prof" }
 
@@ -33,6 +33,7 @@ describe("assertCan — read/update/delete de plano", () => {
         userId: "u-prof",
         gymId: "gym-2",
         roles: ["profissional"],
+        mustChangePassword: false,
       }
       expect(() => assertCan(otherGym, action, ownPlan)).toThrow(NotFoundError)
     })
@@ -42,6 +43,7 @@ describe("assertCan — read/update/delete de plano", () => {
         userId: "u-prof-2",
         gymId: "gym-1",
         roles: ["profissional"],
+        mustChangePassword: false,
       }
       expect(() => assertCan(otherProf, action, ownPlan)).toThrow(NotFoundError)
     })
@@ -66,7 +68,7 @@ describe("assertCan — workoutPlan:read por aluno (RN-ATR-04)", () => {
   })
 
   it("atribuição ativa de OUTRO gym não vale (cross-tenant) → 404", () => {
-    const alunoOtherGym: SessionUser = { userId: "u-aluno", gymId: "gym-2", roles: ["aluno"] }
+    const alunoOtherGym: SessionUser = { userId: "u-aluno", gymId: "gym-2", roles: ["aluno"], mustChangePassword: false }
     expect(() =>
       assertCan(alunoOtherGym, "workoutPlan:read", {
         ...ownPlan,
@@ -83,12 +85,12 @@ describe("assertCan — assignment:create / assignment:revoke", () => {
     })
 
     it(`${action}: profissional não-dono mesmo gym → 404`, () => {
-      const otherProf: SessionUser = { userId: "u-prof-2", gymId: "gym-1", roles: ["profissional"] }
+      const otherProf: SessionUser = { userId: "u-prof-2", gymId: "gym-1", roles: ["profissional"], mustChangePassword: false }
       expect(() => assertCan(otherProf, action, ownPlan)).toThrow(NotFoundError)
     })
 
     it(`${action}: outro gym → 404 (cross-tenant)`, () => {
-      const otherGym: SessionUser = { userId: "u-prof", gymId: "gym-2", roles: ["profissional"] }
+      const otherGym: SessionUser = { userId: "u-prof", gymId: "gym-2", roles: ["profissional"], mustChangePassword: false }
       expect(() => assertCan(otherGym, action, ownPlan)).toThrow(NotFoundError)
     })
 

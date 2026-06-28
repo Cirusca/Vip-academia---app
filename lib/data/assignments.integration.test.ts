@@ -13,11 +13,11 @@ import type { SessionUser } from "@/lib/auth/session"
 const GYM_A = "it2-gymA"
 const GYM_B = "it2-gymB"
 
-const profA: SessionUser = { userId: "it2-profA", gymId: GYM_A, roles: ["profissional"] }
-const profA2: SessionUser = { userId: "it2-profA2", gymId: GYM_A, roles: ["profissional"] }
-const alunoA: SessionUser = { userId: "it2-alunoA", gymId: GYM_A, roles: ["aluno"] }
-const alunoA2: SessionUser = { userId: "it2-alunoA2", gymId: GYM_A, roles: ["aluno"] }
-const profB: SessionUser = { userId: "it2-profB", gymId: GYM_B, roles: ["profissional"] }
+const profA: SessionUser = { userId: "it2-profA", gymId: GYM_A, roles: ["profissional"], mustChangePassword: false }
+const profA2: SessionUser = { userId: "it2-profA2", gymId: GYM_A, roles: ["profissional"], mustChangePassword: false }
+const alunoA: SessionUser = { userId: "it2-alunoA", gymId: GYM_A, roles: ["aluno"], mustChangePassword: false }
+const alunoA2: SessionUser = { userId: "it2-alunoA2", gymId: GYM_A, roles: ["aluno"], mustChangePassword: false }
+const profB: SessionUser = { userId: "it2-profB", gymId: GYM_B, roles: ["profissional"], mustChangePassword: false }
 
 const ALL_IDS = [profA, profA2, alunoA, alunoA2, profB].map((s) => s.userId)
 

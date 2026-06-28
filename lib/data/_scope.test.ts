@@ -6,7 +6,7 @@ vi.mock("@/lib/prisma", () => ({ prisma: {} }))
 import { tenantWhere } from "@/lib/data/_scope"
 import type { SessionUser } from "@/lib/auth/session"
 
-const session: SessionUser = { userId: "u1", gymId: "gym-1", roles: ["profissional"] }
+const session: SessionUser = { userId: "u1", gymId: "gym-1", roles: ["profissional"], mustChangePassword: false }
 
 describe("tenantWhere", () => {
   it("injeta gymId da sessão quando não há where", () => {
