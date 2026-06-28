@@ -48,3 +48,32 @@ export const createWorkoutPlanSchema = z.object({
     ),
 })
 export type CreateWorkoutPlanInput = z.infer<typeof createWorkoutPlanSchema>
+
+/**
+ * RN-PLA-03 — update parcial: só os campos enviados são alterados.
+ * `exercises` é opcional; se presente, SUBSTITUI todos os exercícios do plano
+ * (deleteMany + create) — simplifica o controle de ordem (1-based, server-side).
+ */
+export const updateWorkoutPlanSchema = z.object({
+  workoutPlanId: z.string().min(1, "ID do plano é obrigatório."),
+  name: nonEmpty("Nome do plano").max(120, "Nome muito longo.").optional(),
+  day: z.string().trim().max(40).optional().nullable(),
+  estDuration: z.number().int().min(0).max(600).optional().nullable(),
+  estCalories: z.number().int().min(0).max(10000).optional().nullable(),
+  level: workoutLevelSchema.optional().nullable(),
+  exercises: z
+    .array(exerciseInputSchema)
+    .min(1, "O plano precisa de ao menos 1 exercício.")
+    .max(
+      MAX_EXERCISES_PER_PLAN,
+      `O plano pode ter no máximo ${MAX_EXERCISES_PER_PLAN} exercícios.`,
+    )
+    .optional(),
+})
+export type UpdateWorkoutPlanInput = z.infer<typeof updateWorkoutPlanSchema>
+
+/** RN-PLA-08 — soft-delete: só precisa do id. */
+export const deleteWorkoutPlanSchema = z.object({
+  workoutPlanId: z.string().min(1, "ID do plano é obrigatório."),
+})
+export type DeleteWorkoutPlanInput = z.infer<typeof deleteWorkoutPlanSchema>
