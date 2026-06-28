@@ -41,6 +41,13 @@ enum WorkoutPlanStatus {
   inativo // soft delete do plano (RN-PLA-08)
 }
 
+// Fase 2 — estados da atribuição (RN-ATR-05). Apenas `ativa` vira treino do dia.
+enum AssignmentStatus {
+  ativa
+  pausada
+  concluida
+}
+
 // ============================================================================
 // AUTH.JS v5 — contrato do @auth/prisma-adapter (não renomear campos).
 // Com session.strategy = "jwt" (Fase 1.3), Session e VerificationToken ficam
@@ -69,6 +76,10 @@ model User {
   accounts     Account[]
   sessions     Session[]
   workoutPlans WorkoutPlan[] @relation("PlanOwner")
+
+  // Fase 2 — atribuições recebidas (como aluno) e feitas (como profissional).
+  assignmentsReceived Assignment[] @relation("AssignmentAluno")
+  assignmentsMade     Assignment[] @relation("AssignmentAssigner")
 
   @@index([gymId, status])
   @@index([gymId, deletedAt])
@@ -135,8 +146,9 @@ model WorkoutPlan {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  owner     User       @relation("PlanOwner", fields: [createdBy], references: [id], onDelete: Restrict)
-  exercises Exercise[]
+  owner       User         @relation("PlanOwner", fields: [createdBy], references: [id], onDelete: Restrict)
+  exercises   Exercise[]
+  assignments Assignment[] // Fase 2 — a quem este plano foi atribuído
 
   @@index([gymId, status])
   @@index([gymId, createdBy, status]) // quota RN-LIM-01 (<=50 planos/prof)
@@ -163,4 +175,36 @@ model Exercise {
   @@unique([workoutPlanId, order]) // não há duas posições iguais no mesmo plano
   @@index([workoutPlanId, order]) // leitura ordenada
   @@map("exercises")
+}
+
+// ============================================================================
+// FASE 2 — Assignment (atribuição de plano a aluno)
+// ----------------------------------------------------------------------------
+// RN-ATR: o profissional ATRIBUI um plano que lhe pertence a um aluno do mesmo
+// gym. A atribuição REFERENCIA o plano (não copia) — edições do plano refletem
+// nas atribuições ativas (RN-ATR-06). Um plano serve a vários alunos e um aluno
+// pode ter vários planos (RN-ATR-03). `gymId` é denormalizado p/ escopar toda
+// query por tenant sem join.
+// ============================================================================
+
+model Assignment {
+  id            String           @id @default(cuid())
+  gymId         String // tenant — derivado da sessão, nunca do cliente
+  workoutPlanId String
+  alunoId       String
+  assignedBy    String // profissional que atribuiu (RN-ATR-01)
+  status        AssignmentStatus @default(ativa) // RN-ATR-05
+  assignedAt    DateTime         @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workoutPlan WorkoutPlan @relation(fields: [workoutPlanId], references: [id], onDelete: Cascade)
+  aluno       User        @relation("AssignmentAluno", fields: [alunoId], references: [id], onDelete: Cascade)
+  assigner    User        @relation("AssignmentAssigner", fields: [assignedBy], references: [id], onDelete: Restrict)
+
+  @@index([gymId, alunoId, status]) // aluno lista seus planos atribuídos ativos (RN-ATR-04)
+  @@index([gymId, workoutPlanId, status]) // profissional vê a quem um plano foi atribuído
+  // RN-ATR-08 ("1 atribuição ativa por par") = índice PARCIAL único em SQL bruto na migração.
+  @@map("assignments")
 }

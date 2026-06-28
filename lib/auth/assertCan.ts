@@ -3,9 +3,10 @@ import "server-only"
 import type { SessionUser } from "@/lib/auth/session"
 import { NotFoundError } from "@/lib/auth/errors"
 
-// Predicado de papel inline (puro) — evita importar session.ts em runtime, que
-// arrastaria o `@/auth` (next-auth) para contextos onde só queremos a lógica.
+// Predicados de papel inline (puros) — evitam importar session.ts em runtime,
+// que arrastaria o `@/auth` (next-auth) para contextos onde só queremos a lógica.
 const isProfissional = (s: SessionUser) => s.roles.includes("profissional")
+const isAluno = (s: SessionUser) => s.roles.includes("aluno")
 
 /**
  * `assertCan` — a verificação de autorização fina (RBAC + tenant + posse).
@@ -24,19 +25,27 @@ export type Action =
   | "workoutPlan:read"
   | "workoutPlan:update"
   | "workoutPlan:delete"
+  | "assignment:create"
+  | "assignment:revoke"
 
 /** Recurso com dono e tenant (forma mínima exigida para autorizar). */
 export interface OwnedResource {
   gymId: string
-  /** dono = profissional que criou (WorkoutPlan.createdBy). */
+  /** dono/responsável: WorkoutPlan.createdBy ou Assignment.assignedBy. */
   createdBy: string
+  /**
+   * Apenas para `workoutPlan:read` por ALUNO (RN-ATR-04): há uma Assignment
+   * `ativa` deste plano para o viewer? Computado na camada de dados (não-puro),
+   * passado já resolvido para manter `assertCan` puro e testável.
+   */
+  viewerHasActiveAssignment?: boolean
 }
 
 /** Sobrecarga: `create` não tem recurso preexistente (o alvo é o gym da sessão). */
 export function assertCan(session: SessionUser, action: "workoutPlan:create"): void
 export function assertCan(
   session: SessionUser,
-  action: "workoutPlan:read" | "workoutPlan:update" | "workoutPlan:delete",
+  action: "workoutPlan:read" | "workoutPlan:update" | "workoutPlan:delete" | "assignment:create" | "assignment:revoke",
   resource: OwnedResource,
 ): void
 export function assertCan(
@@ -52,17 +61,45 @@ export function assertCan(
       return
     }
 
-    case "workoutPlan:read":
+    case "workoutPlan:read": {
+      if (!resource) throw new NotFoundError()
+      // 1) Tenant: recurso de outra academia é como se não existisse.
+      if (resource.gymId !== session.gymId) throw new NotFoundError()
+      // 2a) Profissional dono lê o próprio plano.
+      if (isProfissional(session) && resource.createdBy === session.userId) return
+      // 2b) Aluno lê SOMENTE planos atribuídos a ele com atribuição ativa (RN-ATR-04).
+      if (isAluno(session) && resource.viewerHasActiveAssignment) return
+      // Qualquer outro caso (incl. profissional não-dono) → indistinguível de inexistente.
+      throw new NotFoundError()
+    }
+
     case "workoutPlan:update":
     case "workoutPlan:delete": {
-      // resource é garantido pela sobrecarga tipada; defesa em runtime mesmo assim.
       if (!resource) throw new NotFoundError()
-
-      // 1) Tenant: recurso de outra academia é como se não existisse (cross-tenant).
+      // 1) Tenant. 2) Papel + posse: gerir um plano exige ser o profissional dono.
       if (resource.gymId !== session.gymId) throw new NotFoundError()
+      if (!isProfissional(session)) throw new NotFoundError()
+      if (resource.createdBy !== session.userId) throw new NotFoundError()
+      return
+    }
 
-      // 2) Papel + posse: no MVP, gerir um plano exige ser o profissional dono.
-      //    (Leitura por aluno via Assignment entra na Fase 2 — por ora, 404.)
+    case "assignment:create": {
+      // RN-ATR-02: atribuir exige ser o profissional DONO do plano-alvo. O
+      // `resource` aqui é o PLANO (gymId + createdBy). A validade do aluno-alvo
+      // (mesmo gym, papel aluno) é checada por existência na camada de dados.
+      // O gate de "vínculo ativo" (RN-VIN-06/Link) entra na Fase 3.
+      if (!resource) throw new NotFoundError()
+      if (resource.gymId !== session.gymId) throw new NotFoundError()
+      if (!isProfissional(session)) throw new NotFoundError()
+      if (resource.createdBy !== session.userId) throw new NotFoundError()
+      return
+    }
+
+    case "assignment:revoke": {
+      // Revogar/pausar exige ser o profissional que FEZ a atribuição. `resource`
+      // é a Assignment (gymId + createdBy=assignedBy).
+      if (!resource) throw new NotFoundError()
+      if (resource.gymId !== session.gymId) throw new NotFoundError()
       if (!isProfissional(session)) throw new NotFoundError()
       if (resource.createdBy !== session.userId) throw new NotFoundError()
       return

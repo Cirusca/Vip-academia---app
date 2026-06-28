@@ -14,14 +14,14 @@ import "server-only"
 
 import type { WorkoutPlan } from "@/lib/types"
 import type { SessionUser } from "@/lib/auth/session"
-import { requireSession } from "@/lib/auth/session"
+import { requireSession, isProfissional } from "@/lib/auth/session"
 import { assertCan } from "@/lib/auth/assertCan"
 import { NotFoundError } from "@/lib/auth/errors"
 import { db, tenantWhere } from "@/lib/data/_scope"
 import { MAX_PLANS_PER_PROFESSIONAL } from "@/lib/validation/limits"
 import type { CreateWorkoutPlanInput } from "@/lib/validation/workoutPlan"
 import { Prisma } from "@/lib/generated/prisma/client"
-import { WorkoutPlanStatus } from "@/lib/generated/prisma/enums"
+import { AssignmentStatus, WorkoutPlanStatus } from "@/lib/generated/prisma/enums"
 
 // `select` reutilizado para mapear um plano para a view (satisfies → o Prisma
 // narra o tipo de retorno exatamente para estes campos).
@@ -95,12 +95,32 @@ function toView(plan: PlanRow): WorkoutPlan {
 }
 
 /**
- * Núcleo: planos ATIVOS escopados por gymId da sessão. Recebe a sessão explícita
- * (testável). O wrapper `getWorkoutPlans()` resolve a sessão para a UI.
+ * Núcleo: planos ATIVOS, escopados por gymId E por PAPEL (RN-ATR-04).
+ * - Profissional: vê os planos que CRIOU.
+ * - Aluno: vê apenas os planos com atribuição ATIVA para ele (via Assignment).
+ * (Usuário com ambos os papéis — RN-USR-08 — recebe a visão de profissional.)
+ * Recebe a sessão explícita (testável); `getWorkoutPlans()` resolve para a UI.
  */
 export async function listWorkoutPlans(session: SessionUser): Promise<WorkoutPlan[]> {
+  const where = isProfissional(session)
+    ? tenantWhere(session, {
+        status: WorkoutPlanStatus.ativo,
+        createdBy: session.userId,
+      })
+    : tenantWhere(session, {
+        status: WorkoutPlanStatus.ativo,
+        assignments: {
+          // gymId redundante (o plano já é gym-scoped) mas explícito p/ defesa.
+          some: {
+            alunoId: session.userId,
+            status: AssignmentStatus.ativa,
+            gymId: session.gymId,
+          },
+        },
+      })
+
   const plans = await db.workoutPlan.findMany({
-    where: tenantWhere(session, { status: WorkoutPlanStatus.ativo }),
+    where,
     orderBy: { createdAt: "asc" },
     select: planViewSelect,
   })
@@ -124,10 +144,25 @@ export async function getWorkoutPlanById(
 ): Promise<WorkoutPlan> {
   const plan = await db.workoutPlan.findFirst({
     where: tenantWhere(session, { id }),
-    select: { ...planViewSelect, gymId: true, createdBy: true },
+    select: {
+      ...planViewSelect,
+      gymId: true,
+      createdBy: true,
+      // Existe atribuição ATIVA deste plano para o viewer? Decide a leitura do
+      // aluno (RN-ATR-04). `take: 1` — só precisamos saber se há ao menos uma.
+      assignments: {
+        where: { alunoId: session.userId, status: AssignmentStatus.ativa },
+        select: { id: true },
+        take: 1,
+      },
+    },
   })
   if (!plan) throw new NotFoundError()
-  assertCan(session, "workoutPlan:read", { gymId: plan.gymId, createdBy: plan.createdBy })
+  assertCan(session, "workoutPlan:read", {
+    gymId: plan.gymId,
+    createdBy: plan.createdBy,
+    viewerHasActiveAssignment: plan.assignments.length > 0,
+  })
   return toView(plan)
 }
 

@@ -70,14 +70,14 @@ e estão consolidadas na Seção 9; as regras abaixo já refletem essas decisõe
 
 | ID | Regra | Status |
 |---|---|---|
-| RN-ATR-01 | A atribuição é representada por `Assignment { workoutPlanId, alunoId, assignedBy, status, assignedAt }`. | ❌ |
-| RN-ATR-02 | Um profissional só pode atribuir um plano que **lhe pertence** a alunos com vínculo **`ativo`**. | ❌ |
-| RN-ATR-03 | Um mesmo plano pode ser atribuído a **vários alunos**; um aluno pode ter **vários planos** atribuídos (ex.: Treino A, B, C). | 🟡 (UI mostra A/B/C) |
-| RN-ATR-04 | O **aluno só enxerga planos atribuídos a ele**; nunca a biblioteca completa do profissional. | ❌ |
-| RN-ATR-05 | Uma atribuição tem status `ativa`, `pausada` ou `concluída`. Apenas atribuições `ativas` aparecem como treinos do dia para o aluno. | ❌ |
-| RN-ATR-06 | A atribuição **referencia** o plano (não copia). Edições do profissional no plano **refletem** nas atribuições `ativas`. Registros já executados permanecem imutáveis (RN-EXE-07). | ❌ |
-| RN-ATR-07 | Encerrar o vínculo (RN-VIN-05) passa as atribuições `ativas` daquele par para **`pausada`** (estado único, reversível). O aluno mantém acesso **somente-leitura** ao histórico e aos planos pausados (não inicia novos `WorkoutLog`), com aviso "vínculo encerrado". Atribuições pausadas por encerramento só voltam a `ativa` via novo vínculo + reatribuição. | ❌ |
-| RN-ATR-08 | **Unicidade:** não pode existir mais de uma `Assignment` `ativa` para o mesmo par (`workoutPlanId`, `alunoId`). Reatribuir um plano já ativo é *no-op* (ou reativa a atribuição existente), evitando treinos duplicados na lista do aluno. | ❌ |
+| RN-ATR-01 | A atribuição é representada por `Assignment { workoutPlanId, alunoId, assignedBy, status, assignedAt }`. | ✅ (Fase 2 — model + migração) |
+| RN-ATR-02 | Um profissional só pode atribuir um plano que **lhe pertence** a alunos com vínculo **`ativo`**. | 🟡 (posse do plano ✅ via `assertCan assignment:create`; gate de **vínculo ativo** depende de `Link` — Fase 3) |
+| RN-ATR-03 | Um mesmo plano pode ser atribuído a **vários alunos**; um aluno pode ter **vários planos** atribuídos (ex.: Treino A, B, C). | ✅ (modelo template, junção `Assignment`) |
+| RN-ATR-04 | O **aluno só enxerga planos atribuídos a ele**; nunca a biblioteca completa do profissional. | ✅ (`listWorkoutPlans`/`getWorkoutPlanById` por papel) |
+| RN-ATR-05 | Uma atribuição tem status `ativa`, `pausada` ou `concluída`. Apenas atribuições `ativas` aparecem como treinos do dia para o aluno. | 🟡 (enum `ativa`/`pausada`/`concluida` ✅; `concluida` só na execução — Fase 3) |
+| RN-ATR-06 | A atribuição **referencia** o plano (não copia). Edições do profissional no plano **refletem** nas atribuições `ativas`. Registros já executados permanecem imutáveis (RN-EXE-07). | 🟡 (referência ✅; edição de plano = fatia B; snapshot de execução = Fase 3) |
+| RN-ATR-07 | Encerrar o vínculo (RN-VIN-05) passa as atribuições `ativas` daquele par para **`pausada`** (estado único, reversível). O aluno mantém acesso **somente-leitura** ao histórico e aos planos pausados (não inicia novos `WorkoutLog`), com aviso "vínculo encerrado". Atribuições pausadas por encerramento só voltam a `ativa` via novo vínculo + reatribuição. | ❌ (depende de `Link` — Fase 3; `revokeAssignment` já pausa por ação do profissional) |
+| RN-ATR-08 | **Unicidade:** não pode existir mais de uma `Assignment` `ativa` para o mesmo par (`workoutPlanId`, `alunoId`). Reatribuir um plano já ativo é *no-op* (ou reativa a atribuição existente), evitando treinos duplicados na lista do aluno. | ✅ (índice parcial único + no-op idempotente com guarda P2002) |
 
 ---
 

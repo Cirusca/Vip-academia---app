@@ -72,6 +72,30 @@ async function main() {
     })
   }
 
+  // Fase 2 — atribui o plano de exemplo ao aluno (RN-ATR), idempotente. Sem isso
+  // o `/treinos` do aluno fica vazio (ele só vê planos ATRIBUÍDOS a ele).
+  const plan = await prisma.workoutPlan.findFirst({
+    where: { gymId: GYM, createdBy: prof.id },
+    select: { id: true },
+  })
+  if (plan) {
+    const hasAssignment = await prisma.assignment.findFirst({
+      where: { workoutPlanId: plan.id, alunoId: aluno.id, status: "ativa" },
+      select: { id: true },
+    })
+    if (!hasAssignment) {
+      await prisma.assignment.create({
+        data: {
+          gymId: GYM,
+          workoutPlanId: plan.id,
+          alunoId: aluno.id,
+          assignedBy: prof.id,
+          status: "ativa",
+        },
+      })
+    }
+  }
+
   console.log(
     `Seed OK — gym=${GYM} | prof=${prof.email} | aluno=${aluno.email} | senha dev="${DEV_PASSWORD}"`,
   )

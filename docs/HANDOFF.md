@@ -65,6 +65,34 @@
 - Leitura de segurança da fase: ✅ (gymId, IDOR, passwordHash não exposto,
   segredos fora do git, sem prisma cru fora de `lib/data`).
 
+### Fase 2 — fatia A: Atribuições + escopo por papel (✅ feito + validado)
+- **Migração aditiva `add_assignments`** (escrita à mão, aplicada por
+  `migrate deploy` p/ não autogerar e preservar o SQL bruto da Fase 1): model
+  `Assignment` + enum `AssignmentStatus(ativa|pausada|concluida)` + FKs +
+  **índice parcial único `assignments_active_pair_unique`** (RN-ATR-08 — 1 ativa
+  por par). Verificado no banco; CREF/CHECKs da Fase 1 intactos (sem drift).
+- **`lib/data/assignments.ts`** (server-only): `assignPlanToAluno` (posse do
+  plano via `assertCan`; aluno-alvo re-buscado escopado por gym; **idempotente**
+  com guarda `P2002`) e `revokeAssignment` (pausa; só quem atribuiu).
+- **Escopo por PAPEL** (RN-ATR-04): `listWorkoutPlans` ramifica — profissional vê
+  o que criou; aluno vê só os planos com `Assignment` ativa p/ ele.
+  `getWorkoutPlanById` libera o aluno via `viewerHasActiveAssignment`.
+- **`assertCan` estendida**: `read` separado de `update`/`delete`; ações
+  `assignment:create`/`assignment:revoke`; mantém-se pura (a flag de atribuição
+  é resolvida na camada de dados). Server Actions `assignPlanAction`/
+  `revokeAssignmentAction`.
+- **Seed** atribui o plano demo ao aluno (idempotente). **Testes: 59** (eram 39)
+  — +integração do ciclo de atribuição (cross-tenant/posse/idempotência/revogar)
+  e +unit de `assertCan`. `pnpm build` ✅ (TS ok; fronteira server-only intacta).
+- **Leitura de segurança Fase 2 ✅:** `gymId` sempre da sessão; `alunoId`/
+  `workoutPlanId` do input só são aceitos após re-busca escopada por gym (IDOR →
+  404); RBAC por `assertCan` (atribuir = profissional dono; revogar = quem
+  atribuiu; aluno lê só atribuído ativo); idempotência sem duplicar ativa
+  (índice parcial + P2002); nenhum segredo/coluna sensível exposto; `assignments.ts`
+  é `server-only`. **Dívida consciente:** o gate de *vínculo ativo* (RN-ATR-02/
+  RN-VIN-06) só entra com `Link` na Fase 3 — hoje qualquer aluno do mesmo gym pode
+  receber atribuição.
+
 ---
 
 ## Ambiente (CRÍTICO para retomar)
@@ -103,7 +131,11 @@ export PRISMA_SCHEMA_ENGINE_BINARY="$CACHE/schema-engine"
    `export PRISMA_SCHEMA_ENGINE_BINARY="$CACHE/schema-engine"` (re-baixar via curl
    se o cache sumir).
 3. `pnpm install` (o `postinstall` roda `prisma generate`).
-4. `pnpm db:seed` (idempotente) · `pnpm test` · `pnpm build`.
+4. `pnpm exec prisma migrate deploy` (aplica migrações pendentes **sem** autogerar
+   — preserva o SQL bruto; nunca usar `migrate dev` aqui — ver §Drift).
+5. Seed: `export CHECKPOINT_DISABLE=1` e `pnpm exec tsx prisma/seed.ts`
+   (o CLI `prisma db seed` tenta uma checagem de rede que o proxy reseta —
+   ECONNRESET; o `tsx` direto roda offline). Depois `pnpm test` · `pnpm build`.
 
 ### Credenciais de dev (seed)
 - `prof@vip.dev` (profissional) e `aluno@vip.dev` (aluno), gym `gym-demo`,
@@ -116,13 +148,11 @@ export PRISMA_SCHEMA_ENGINE_BINARY="$CACHE/schema-engine"
 Front segue congelado salvo o necessário para validar o backend. Ordem sugerida;
 leitura de segurança ao fim. Cada item é uma fatia commitável.
 
-### A. Migração aditiva `Assignment` + vínculo de leitura por papel
-- Modelo `Assignment` (profissional atribui plano a aluno com vínculo ativo —
-  RN-ATR), com índice parcial "1 atribuição ativa por par" e CHECKs.
-- **`listWorkoutPlans` hoje é escopado só por `gymId`** (todo mundo do gym vê os
-  planos do gym). Trocar para escopo por PAPEL: profissional vê os planos que
-  criou; aluno vê os planos ATRIBUÍDOS a ele (via `Assignment`). Estender
-  `assertCan` para `assignment:*` e leitura de aluno.
+### A. Migração aditiva `Assignment` + leitura por papel — ✅ CONCLUÍDO
+Feito e validado (ver §"Fase 2 — fatia A" acima). `Assignment` + índice parcial
+único, fachada `assignments.ts`, escopo por papel em `listWorkoutPlans`/
+`getWorkoutPlanById`, `assertCan` estendida, seed + 59 testes + build.
+**Resta como dívida de F3:** gate de *vínculo ativo* (RN-ATR-02/07) com `Link`.
 
 ### B. Edição/soft-delete de plano + UI de criação (descongelar o mínimo)
 - Server Actions `updateWorkoutPlan`/`deleteWorkoutPlan` (assertCan read/update/
@@ -139,18 +169,20 @@ leitura de segurança ao fim. Cada item é uma fatia commitável.
 ---
 
 ## Pendências / dívidas conscientes
-- **Drift do Prisma:** o SQL bruto (índice parcial de CREF, CHECKs) não está no
-  `schema.prisma`; futuros `migrate dev` podem acusar drift — manter os blocos nas
-  migrações e não deixar o Prisma removê-los.
-- Migrações aditivas das fases seguintes: `Assignment` (F2), `Link` (F3),
-  `WorkoutLog`/`ExerciseLog` (F3), `Profile` (F4) — com seus índices parciais
-  (1 atribuição ativa/par; 1 profissional ativo/aluno por gym) e CHECKs.
+- **Drift do Prisma:** o SQL bruto (índice parcial de CREF/atribuição, CHECKs) não
+  está no `schema.prisma`; **nunca usar `migrate dev`** (autogera e tentaria dropar
+  esses objetos). Migrações são escritas à mão e aplicadas por `migrate deploy`.
+  Já são 2 migrações (`init_auth_and_core` + `add_assignments`); ambas verificadas
+  no banco sem drift.
+- Migrações aditivas das fases seguintes: `Link` (F3), `WorkoutLog`/`ExerciseLog`
+  (F3), `Profile` (F4) — com seus índices parciais (1 profissional ativo/aluno por
+  gym) e CHECKs. (`Assignment` ✅ feito na F2.)
 - Engines do Prisma em CI/produção (ver Ambiente). `generate` é offline (Rust-free);
   só o schema-engine é necessário, via `PRISMA_SCHEMA_ENGINE_BINARY`.
 - Fase 0 inacabada: ESLint/CI, `/configuracoes`, branding. (Vitest ✅ na Fase 1.)
-- **Escopo de leitura por papel** ainda pendente: `listWorkoutPlans` filtra só por
-  `gymId` (ver Próxima etapa A) — aluno/profissional ainda não veem recortes
-  distintos até `Assignment`.
+- **Gate de vínculo ativo (RN-ATR-02/07):** atribuir/pausar ainda não checa um
+  `Link` ativo prof↔aluno (não existe até a F3). Hoje qualquer aluno do mesmo gym
+  pode receber atribuição; encerrar vínculo ainda não pausa atribuições em cascata.
 - RLS no Postgres (defesa em profundidade do tenant) — avaliar antes do 1º deploy real.
 - `AUTH_SECRET` em produção precisa ser um segredo forte (o `.env` de dev usa
   placeholder); `trustHost: true` está ligado (ok para self-host).
