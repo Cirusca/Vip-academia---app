@@ -20,6 +20,9 @@ type TokenClaims = {
  * viajam no TOKEN, permitindo o gate no Edge sem acesso ao banco.
  */
 export const authConfig = {
+  // Self-host: confiar no Host da requisição (em Vercel isto é automático). Sem
+  // isto o Auth.js recusa hosts não-padrão com UntrustedHost.
+  trustHost: true,
   pages: { signIn: "/login" },
   session: { strategy: "jwt" },
   providers: [], // reais definidos em auth.ts (Node)
