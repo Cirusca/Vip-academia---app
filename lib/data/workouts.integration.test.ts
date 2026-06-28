@@ -94,6 +94,15 @@ suite("updateWorkoutPlan", () => {
   let updatePlanId: string
 
   beforeAll(async () => {
+    await db.workoutPlan.deleteMany({ where: { gymId: { in: [GYM_A, GYM_B] } } })
+    await db.user.deleteMany({ where: { id: { in: [profA.userId, alunoA.userId, profB.userId] } } })
+    await db.user.createMany({
+      data: [
+        { id: profA.userId, email: "it-profA-u@x.dev", roles: ["profissional"], gymId: GYM_A },
+        { id: alunoA.userId, email: "it-alunoA-u@x.dev", roles: ["aluno"], gymId: GYM_A },
+        { id: profB.userId, email: "it-profB-u@x.dev", roles: ["profissional"], gymId: GYM_B },
+      ],
+    })
     const created = await createWorkoutPlan(profA, {
       name: "Plano para editar",
       day: "Segunda",
@@ -104,7 +113,8 @@ suite("updateWorkoutPlan", () => {
   })
 
   afterAll(async () => {
-    await db.workoutPlan.deleteMany({ where: { id: updatePlanId } })
+    await db.workoutPlan.deleteMany({ where: { gymId: { in: [GYM_A, GYM_B] } } })
+    await db.user.deleteMany({ where: { id: { in: [profA.userId, alunoA.userId, profB.userId] } } })
   })
 
   it("dono atualiza nome do plano", async () => {
@@ -154,12 +164,27 @@ suite("deleteWorkoutPlan (soft-delete)", () => {
   let deletePlanId: string
 
   beforeAll(async () => {
+    await db.workoutPlan.deleteMany({ where: { gymId: { in: [GYM_A, GYM_B] } } })
+    await db.user.deleteMany({ where: { id: { in: [profA.userId, alunoA.userId, profB.userId] } } })
+    await db.user.createMany({
+      data: [
+        { id: profA.userId, email: "it-profA-d@x.dev", roles: ["profissional"], gymId: GYM_A },
+        { id: alunoA.userId, email: "it-alunoA-d@x.dev", roles: ["aluno"], gymId: GYM_A },
+        { id: profB.userId, email: "it-profB-d@x.dev", roles: ["profissional"], gymId: GYM_B },
+      ],
+    })
     const created = await createWorkoutPlan(profA, {
       name: "Plano para deletar",
       exercises: [{ name: "Barra", sets: 3, reps: "8", rest: "120s", muscle: "Costas" }],
     })
     deletePlanId = created.id
     await assignPlanToAluno(profA, { workoutPlanId: deletePlanId, alunoId: alunoA.userId })
+  })
+
+  afterAll(async () => {
+    await db.workoutPlan.deleteMany({ where: { gymId: { in: [GYM_A, GYM_B] } } })
+    await db.user.deleteMany({ where: { id: { in: [profA.userId, alunoA.userId, profB.userId] } } })
+    await db.$disconnect()
   })
 
   it("profB de outro gym NÃO deleta → 404 (IDOR)", async () => {
