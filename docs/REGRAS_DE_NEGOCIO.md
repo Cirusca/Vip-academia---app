@@ -95,7 +95,7 @@ e estão consolidadas na Seção 9; as regras abaixo já refletem essas decisõe
 | RN-EXE-08 | O **profissional** acompanha o progresso apenas dos **seus** alunos com vínculo ativo, conforme RN-SEG-03 (leitura). | ❌ |
 | RN-EXE-09 | **Snapshot ao iniciar:** ao "Iniciar Treino", o `WorkoutLog` **congela** a lista de exercícios do plano naquele instante. Edições do profissional (RN-ATR-06) só afetam execuções iniciadas **depois**; sessões abertas seguem com o snapshot. Reconcilia RN-ATR-06 (propaga p/ futuras) com RN-EXE-07 (imutabilidade do que está em curso). | ❌ |
 | RN-EXE-10 | **Confirmação de conclusão:** ao atingir 100% (ou pelo botão "Concluir"), o sistema **pede confirmação** antes de fechar o `WorkoutLog`. Antes de confirmar, marcar/desmarcar é livre; **após** confirmado, o treino é imutável (RN-EXE-07) e conta para métricas/streak. | ❌ |
-| RN-EXE-11 | **Sessão interrompida:** o `WorkoutLog` tem ciclo de vida `em_andamento` → `concluído`; o progresso é persistido **incrementalmente** por exercício, de modo que reabrir o app após fechar/cair a conexão **recupera** o treino em andamento sem perda. | ❌ |
+| RN-EXE-11 | **Sessão interrompida:** o `WorkoutLog` tem ciclo de vida `em_andamento` → `concluído`; o progresso é persistido **incrementalmente** por exercício em armazenamento **client-side** (IndexedDB/localStorage) com sync posterior — **independente de PWA/service worker** —, de modo que reabrir o app após fechar/cair a conexão **recupera** o treino sem perda. | ❌ |
 
 ---
 

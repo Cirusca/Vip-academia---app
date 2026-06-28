@@ -63,9 +63,12 @@ notificações multicanais, 2FA e integrações (ver Seção 7 do relatório).
 - [ ] **0.7 Infra mínima:** `.env.example` (`DATABASE_URL`, `AUTH_SECRET`, chave de
       e-mail), documentar ambientes (dev/staging/prod), **CI** (lint + build + test
       em PR) e escolher **error tracking** (ex.: Sentry, free tier). (RNF-10)
-- [ ] **0.8 Decisão de stack PWA:** migrar `next-pwa` → **`@serwist/next`**
-      (compatível com Next 16/Turbopack) **ou** cortar PWA do MVP. Não deixar para a
-      Fase 5. (RNF-02)
+- [ ] **0.8 PWA — SEM service worker no MVP (decidido):** **remover `next-pwa`**
+      do `next.config.mjs` e do `package.json` (está quebrado/no-op no Turbopack e
+      bloqueia o build). **Manter `public/manifest.json` + ícones** → app instalável
+      ("adicionar à tela inicial") sem SW. Não migrar para Serwist agora: a trilha
+      Turbopack do Serwist ainda é preview/instável (issue #54 aberta, bug
+      `__SW_MANIFEST` #294) e não há dado real para cachear. (RNF-02)
 
 **Aceite (mensurável):** nome único aplicado; dados em `lib/`, páginas como Server
 Components; tema funcional; débito de remoção podado; **`pnpm lint` e `pnpm build`
@@ -79,11 +82,10 @@ verdes SEM flags de supressão**; CI rodando em PR; decisão de PWA registrada.
 > tabelas de usuário/sessão — modelá-lo depois força re-migração). O seed só roda
 > após o hash existir. Entregar uma **fatia vertical** demonstrável.
 
-- [ ] **1.1 Stack:** Next.js Route Handlers/Server Actions + **Prisma** +
-      **PostgreSQL** (Neon/Supabase). Configurar **connection pooling** para
-      serverless (Prisma Accelerate / PgBouncer / driver serverless) — Prisma em
-      funções serverless esgota o pool sem isso. Avaliar Drizzle como alternativa
-      mais leve. *(Resolve "decisão em aberto" de stack.)*
+- [ ] **1.1 Stack (decidida — Prisma + PostgreSQL):** Next.js Route Handlers/Server
+      Actions + **Prisma** + **PostgreSQL** (Neon/Supabase). Configurar
+      **connection pooling** para serverless (Prisma Accelerate / PgBouncer / driver
+      serverless) — Prisma em funções serverless esgota o pool sem isso.
 - [ ] **1.2 Schema (auth + núcleo juntos):** modelar `User`(+`roles[]`,`gymId`,
       `status`), `Profile`, `Link` **e** as tabelas do Auth.js (`Account`,
       `Session`, `VerificationToken`) na **mesma** migração inicial, mais
@@ -212,16 +214,20 @@ Fase 0 ─> Fase 1 ─> Fase 2 ─> Fase 3 ─> Fase 4 ─> Fase 4.5 ║ Fase 5
 
 ---
 
-## Decisões em Aberto
+## Decisões
 
-1. **Nome oficial do produto** (substituir `[NOME_DO_APP]`).
-2. **Stack de backend/banco:** confirmar Prisma + PostgreSQL (Neon/Supabase) vs.
-   alternativa mais leve (Drizzle/Supabase SDK), incl. estratégia de pooling serverless.
-3. **PWA:** migrar para `@serwist/next` ou cortar do MVP? (RNF-02)
-4. **Recuperação de senha por e-mail** no MVP (provedor + custo) ou reset manual?
+**Em aberto:**
+1. **Nome oficial do produto** (substituir `[NOME_DO_APP]`) — *adiado, decidir depois*.
 
-> *Resolvida:* "aluno com mais de um profissional?" → **não no MVP** (1 ativo;
-> modelo permite N), conforme RN-VIN-03.
+**Confirmadas:**
+- ✔ **Backend/banco:** **Prisma + PostgreSQL** (Neon/Supabase), com pooling
+  serverless (Accelerate/PgBouncer/driver serverless).
+- ✔ **PWA:** **sem service worker no MVP** — remover `next-pwa`, manter manifest
+  installable; reavaliar `@serwist/turbopack` pós-MVP (ver Fase 0.8).
+- ✔ **Recuperação de senha:** **reset manual** pelo profissional/admin (sem e-mail
+  no MVP) — ver Fase 1.4.
+- ✔ **Aluno com mais de um profissional?** **Não no MVP** (1 ativo; modelo permite
+  N), conforme RN-VIN-03.
 
 ---
 

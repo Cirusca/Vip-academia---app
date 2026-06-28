@@ -179,7 +179,7 @@ Legenda: **✅ Implementado (UI)** = existe na interface, com dados mockados ·
 | ID | Categoria | Requisito | Status |
 |---|---|---|---|
 | RNF-01 | **Responsividade** | Layout mobile/desktop (sidebar vira drawer) | ✅ |
-| RNF-02 | **PWA** | App instalável (manifest + ícones) | ❌ **config quebrada** — `next-pwa@5.6.0` está abandonado e incompatível com Next 16/Turbopack; nenhum service worker é gerado. Manifest/ícones ok. Decidir migrar p/ `@serwist/next` ou cortar PWA do MVP |
+| RNF-02 | **PWA** | App **instalável** (manifest + ícones), **sem service worker** no MVP | 🟡 **decidido:** remover `next-pwa@5.6.0` (abandonado, no-op no Turbopack, quebra o build); manter manifest/ícones → installable. Offline/SW (Serwist) reavaliado pós-MVP. "Não perder o treino" resolvido via persistência client-side (IndexedDB/localStorage), não SW |
 | RNF-03 | **Acessibilidade** | `aria-label`, `aria-current`, navegação por teclado | 🟡 (parcial) |
 | RNF-04 | **Tema** | Claro/escuro real (next-themes) | ❌ (não conectado) |
 | RNF-05 | **Persistência** | Banco de dados + API | ❌ |
