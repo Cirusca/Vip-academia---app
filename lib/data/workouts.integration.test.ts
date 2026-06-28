@@ -10,7 +10,11 @@ import {
   listWorkoutPlans,
   createWorkoutPlan,
   getWorkoutPlanById,
+  updateWorkoutPlan,
+  deleteWorkoutPlan,
 } from "@/lib/data/workouts"
+import { AssignmentStatus, WorkoutPlanStatus } from "@/lib/generated/prisma/enums"
+import { assignPlanToAluno } from "@/lib/data/assignments"
 import { NotFoundError } from "@/lib/auth/errors"
 import type { SessionUser } from "@/lib/auth/session"
 
@@ -83,5 +87,107 @@ suite("fatia vertical — autorização (cross-tenant / IDOR)", () => {
       select: { gymId: true, createdBy: true },
     })
     expect(row).toEqual({ gymId: GYM_A, createdBy: profA.userId })
+  })
+})
+
+suite("updateWorkoutPlan", () => {
+  let updatePlanId: string
+
+  beforeAll(async () => {
+    const created = await createWorkoutPlan(profA, {
+      name: "Plano para editar",
+      day: "Segunda",
+      estDuration: 45,
+      exercises: [{ name: "Supino", sets: 3, reps: "10", rest: "60s", muscle: "Peito" }],
+    })
+    updatePlanId = created.id
+  })
+
+  afterAll(async () => {
+    await db.workoutPlan.deleteMany({ where: { id: updatePlanId } })
+  })
+
+  it("dono atualiza nome do plano", async () => {
+    const updated = await updateWorkoutPlan(profA, {
+      workoutPlanId: updatePlanId,
+      name: "Plano Editado",
+    })
+    expect(updated.name).toBe("Plano Editado")
+  })
+
+  it("atualiza exercícios — substitui todos (deleteMany + create)", async () => {
+    const updated = await updateWorkoutPlan(profA, {
+      workoutPlanId: updatePlanId,
+      exercises: [
+        { name: "Agacho", sets: 4, reps: "12", rest: "90s", muscle: "Pernas" },
+        { name: "Leg Press", sets: 3, reps: "15", rest: "60s", muscle: "Pernas" },
+      ],
+    })
+    expect(updated.exercises).toHaveLength(2)
+    expect(updated.exercises[0].name).toBe("Agacho")
+    expect(updated.exercises[0].id).toBe(1)
+  })
+
+  it("update sem exercises mantém os existentes", async () => {
+    const before = await getWorkoutPlanById(profA, updatePlanId)
+    const updated = await updateWorkoutPlan(profA, {
+      workoutPlanId: updatePlanId,
+      name: "Só muda o nome",
+    })
+    expect(updated.exercises).toHaveLength(before.exercises.length)
+  })
+
+  it("profissional de outro gym NÃO atualiza → 404 (IDOR)", async () => {
+    await expect(
+      updateWorkoutPlan(profB, { workoutPlanId: updatePlanId, name: "Hack" }),
+    ).rejects.toBeInstanceOf(NotFoundError)
+  })
+
+  it("aluno NÃO atualiza → 404", async () => {
+    await expect(
+      updateWorkoutPlan(alunoA, { workoutPlanId: updatePlanId, name: "Hack" }),
+    ).rejects.toBeInstanceOf(NotFoundError)
+  })
+})
+
+suite("deleteWorkoutPlan (soft-delete)", () => {
+  let deletePlanId: string
+
+  beforeAll(async () => {
+    const created = await createWorkoutPlan(profA, {
+      name: "Plano para deletar",
+      exercises: [{ name: "Barra", sets: 3, reps: "8", rest: "120s", muscle: "Costas" }],
+    })
+    deletePlanId = created.id
+    await assignPlanToAluno(profA, { workoutPlanId: deletePlanId, alunoId: alunoA.userId })
+  })
+
+  it("profB de outro gym NÃO deleta → 404 (IDOR)", async () => {
+    await expect(
+      deleteWorkoutPlan(profB, { workoutPlanId: deletePlanId }),
+    ).rejects.toBeInstanceOf(NotFoundError)
+  })
+
+  it("aluno NÃO deleta → 404", async () => {
+    await expect(
+      deleteWorkoutPlan(alunoA, { workoutPlanId: deletePlanId }),
+    ).rejects.toBeInstanceOf(NotFoundError)
+  })
+
+  it("dono deleta → plano sai de listWorkoutPlans + assignments ativas ficam pausadas", async () => {
+    await deleteWorkoutPlan(profA, { workoutPlanId: deletePlanId })
+    const list = await listWorkoutPlans(profA)
+    expect(list.some((p) => p.id === deletePlanId)).toBe(false)
+    const raw = await db.workoutPlan.findUnique({ where: { id: deletePlanId } })
+    expect(raw?.status).toBe(WorkoutPlanStatus.inativo)
+    expect(raw?.deletedAt).not.toBeNull()
+    const asgn = await db.assignment.findFirst({ where: { workoutPlanId: deletePlanId } })
+    expect(asgn?.status).toBe(AssignmentStatus.pausada)
+  })
+
+  it("deletar plano já inativo → 404", async () => {
+    await expect(
+      deleteWorkoutPlan(profA, { workoutPlanId: deletePlanId }),
+    ).rejects.toBeInstanceOf(NotFoundError)
   })
 })
