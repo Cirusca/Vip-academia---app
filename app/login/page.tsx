@@ -21,7 +21,8 @@ export default async function LoginPage({
       })
     } catch (err) {
       if (err instanceof AuthError) {
-        redirect("/login?error=1")
+        const cb = (formData.get("callbackUrl") as string | null) ?? "/"
+        redirect(`/login?error=1&callbackUrl=${encodeURIComponent(cb)}`)
       }
       throw err
     }
