@@ -104,11 +104,15 @@ export async function forceChangePasswordAction(
   }
 
   // 4. Sucesso — invalida JWT stale (mustChangePassword=true) e redireciona para login
+  // signOut é o único ponto de invalidação do JWT (estratégia JWT sem revogação server-side).
   try {
     await signOut({ redirectTo: "/login" })
   } catch (e) {
     if (isRedirectError(e)) throw e
-    throw e
+    // signOut falhou (ex: rede): senha já mudou, mas JWT ainda vivo.
+    // Retornar erro orientado ao usuário em vez de lançar exceção genérica.
+    console.error("[forceChangePasswordAction] signOut falhou:", e)
+    return { error: "Senha alterada. Faça login novamente." }
   }
 
   // Nunca alcançado (signOut lança NEXT_REDIRECT), mas satisfaz o tipo de retorno
