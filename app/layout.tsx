@@ -30,6 +30,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
 
 /**
@@ -143,15 +144,24 @@ export default function RootLayout({
   return (
     // Idioma definido como português do Brasil
     // Classe bg-background garante cor de fundo correta antes do CSS carregar
-    <html lang="pt-BR" className="bg-background">
-      {/* 
+    // suppressHydrationWarning é exigido pelo next-themes (a classe de tema é
+    // aplicada no cliente antes da hidratação).
+    <html lang="pt-BR" className="bg-background" suppressHydrationWarning>
+      {/*
         Body com fonte sans-serif e anti-aliasing para texto suave.
         Os filhos são renderizados aqui, representando as páginas.
       */}
       <body className="font-sans antialiased">
-        {children}
-        {/* Analytics da Vercel apenas em produção */}
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+          {/* Analytics da Vercel apenas em produção */}
+          {process.env.NODE_ENV === 'production' && <Analytics />}
+        </ThemeProvider>
       </body>
     </html>
   )

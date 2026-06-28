@@ -5,19 +5,17 @@ import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
   Dumbbell,
-  UserPlus,
-  Calendar,
   Settings,
   LogOut,
   X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
+// Itens fora do MVP (Agenda, Personal Trainers) foram removidos na Fase 0.
+// Reintrodução futura via histórico git — ver docs/PLANO_DE_IMPLEMENTACAO.md.
 const menuItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/treinos", label: "Treinos", icon: Dumbbell },
-  { href: "/personal", label: "Personal Trainers", icon: UserPlus },
-  { href: "/agenda", label: "Agenda", icon: Calendar },
   { href: "/configuracoes", label: "Configurações", icon: Settings },
 ]
 
