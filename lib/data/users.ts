@@ -30,12 +30,15 @@ export async function changePassword(
 
   // Se currentPassword foi informada, verifica antes de prosseguir.
   if (opts.currentPassword !== undefined) {
-    const hashToCheck = user.passwordHash ?? ""
-    const valid = await bcrypt.compare(opts.currentPassword, hashToCheck)
+    // Hash isca: garante bcrypt.compare de tempo constante mesmo sem hash real (anti-timing oracle).
+    const DUMMY_HASH = "$2b$10$kXaX9t3gnfZMFWHpLw7Id.tIP6s9wfTCbzhauqaVHRFFPuC/HNq7G"
+    const valid = await bcrypt.compare(opts.currentPassword, user.passwordHash ?? DUMMY_HASH)
     if (!valid) {
       throw new NotFoundError()
     }
   }
+
+  if (!opts.newPassword) throw new Error("newPassword must not be empty")
 
   const newHash = await bcrypt.hash(opts.newPassword, 10)
 
