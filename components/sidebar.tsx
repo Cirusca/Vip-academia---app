@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { logout } from "@/app/actions/auth"
 
 // Itens fora do MVP (Agenda, Personal Trainers) foram removidos na Fase 0.
 // Reintrodução futura via histórico git — ver docs/PLANO_DE_IMPLEMENTACAO.md.
@@ -98,12 +99,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <p className="text-sm font-medium text-foreground">Admin</p>
                 <p className="text-xs text-muted-foreground">Gerente</p>
               </div>
-              <button
-                className="rounded-md p-1.5 text-muted-foreground hover:bg-background hover:text-foreground"
-                aria-label="Sair do sistema"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
+              <form action={logout}>
+                <button
+                  type="submit"
+                  className="rounded-md p-1.5 text-muted-foreground hover:bg-background hover:text-foreground"
+                  aria-label="Sair do sistema"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </form>
             </div>
           </div>
         </div>

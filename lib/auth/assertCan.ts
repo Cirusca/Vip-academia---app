@@ -1,8 +1,11 @@
 import "server-only"
 
 import type { SessionUser } from "@/lib/auth/session"
-import { isProfissional } from "@/lib/auth/session"
 import { NotFoundError } from "@/lib/auth/errors"
+
+// Predicado de papel inline (puro) — evita importar session.ts em runtime, que
+// arrastaria o `@/auth` (next-auth) para contextos onde só queremos a lógica.
+const isProfissional = (s: SessionUser) => s.roles.includes("profissional")
 
 /**
  * `assertCan` — a verificação de autorização fina (RBAC + tenant + posse).

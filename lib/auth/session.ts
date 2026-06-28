@@ -1,6 +1,7 @@
 import "server-only"
 
 import type { Role } from "@/lib/generated/prisma/enums"
+import { auth } from "@/auth"
 import { NotAuthenticatedError } from "@/lib/auth/errors"
 
 /**
@@ -16,18 +17,17 @@ export interface SessionUser {
 }
 
 /**
- * Fonte da sessão atual. Hoje é um *placeholder* (Auth.js entra no item 4 do
- * plano). Quando o Auth.js estiver montado, este corpo passa a:
- *
- *   const session = await auth()
- *   if (!session?.user) return null
- *   return { userId, gymId, roles } // tudo lido do TOKEN (jwt), não do cliente
- *
- * Até lá retorna `null` (ninguém autenticado) — falha fechada, sem brecha.
+ * Fonte da sessão atual: lê do Auth.js (`auth()`), mapeando roles/gymId do TOKEN
+ * (jwt) — nunca de input do cliente. Retorna `null` se não houver sessão.
  */
 async function getSession(): Promise<SessionUser | null> {
-  // TODO(item 4 — Auth.js v5): ler de `auth()` e mapear roles/gymId do token.
-  return null
+  const session = await auth()
+  if (!session?.user?.id) return null
+  return {
+    userId: session.user.id,
+    gymId: session.user.gymId,
+    roles: session.user.roles,
+  }
 }
 
 /**
