@@ -197,6 +197,34 @@ CI `.github/workflows/ci.yml`, leitura de segurança.
 
 ---
 
+## Fase 2C — Senha forçada + Configurações (2026-06-28)
+
+### O que foi implementado
+- **callbackUrl**: login preserva URL de destino mesmo em erro de autenticação
+- **mustChangePassword pipeline**: flag no DB → JWT → sessão → gate no middleware → /trocar-senha
+- **changePassword (data layer)**: `lib/data/users.ts` — bcrypt, anti-timing, anti-IDOR, server-only
+- **Server actions**: `changePasswordAction` (com senha atual) + `forceChangePasswordAction` (sem senha atual, chama signOut ao final)
+- **/trocar-senha**: página de troca forçada; após sucesso, `signOut({ redirectTo: "/login" })` invalida o JWT stale
+- **/configuracoes**: 3 abas reais (Perfil / Segurança / Aparência); mock FitPro removido; dados reais da sessão
+
+### Decisões de segurança
+- `signOut` após `forceChangePasswordAction`: único ponto de invalidação do JWT (estratégia JWT sem revogação server-side)
+- `DUMMY_HASH` em `changePassword`: garante bcrypt.compare de tempo constante mesmo sem hash real (anti-timing oracle)
+- `NotFoundError` para senha incorreta: anti-enumeração (não distingue usuário inexistente de senha errada)
+- Roles não mapeadas → "—" no DOM: evita vazar nomes internos de roles
+
+### Testes
+- 82 testes passando (7 arquivos)
+- Novos: `lib/data/users.integration.test.ts` (4 testes), `app/actions/user.test.ts` (9 testes)
+
+### Próximos passos (Fase 3)
+- CRUD de planos de treino pelo profissional
+- Atribuição de planos a alunos
+- Execução/conclusão pelo aluno
+- Histórico e progresso reais
+
+---
+
 ## Pendências / dívidas conscientes
 - **Drift do Prisma:** o SQL bruto (índice parcial de CREF/atribuição, CHECKs) não
   está no `schema.prisma`; **nunca usar `migrate dev`** (autogera e tentaria dropar
