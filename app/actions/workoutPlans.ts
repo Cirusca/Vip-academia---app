@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { requireSession } from "@/lib/auth/session"
 import { assertCan } from "@/lib/auth/assertCan"
-import { createWorkoutPlanSchema } from "@/lib/validation/workoutPlan"
-import { createWorkoutPlan } from "@/lib/data/workouts"
+import { createWorkoutPlanSchema, updateWorkoutPlanSchema, deleteWorkoutPlanSchema } from "@/lib/validation/workoutPlan"
+import { createWorkoutPlan, updateWorkoutPlan, deleteWorkoutPlan } from "@/lib/data/workouts"
 
 /**
  * Server Action = endpoint público. A ordem é inegociável (RN-SEG):
@@ -18,4 +18,19 @@ export async function createWorkoutPlanAction(raw: unknown) {
   const { id } = await createWorkoutPlan(session, input)
   revalidatePath("/treinos")
   return { id }
+}
+
+export async function updateWorkoutPlanAction(raw: unknown) {
+  const session = await requireSession()
+  const input = updateWorkoutPlanSchema.parse(raw)
+  const updated = await updateWorkoutPlan(session, input)
+  revalidatePath("/treinos")
+  return { id: updated.id }
+}
+
+export async function deleteWorkoutPlanAction(raw: unknown) {
+  const session = await requireSession()
+  const input = deleteWorkoutPlanSchema.parse(raw)
+  await deleteWorkoutPlan(session, input)
+  revalidatePath("/treinos")
 }
