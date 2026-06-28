@@ -1,6 +1,6 @@
 # Relatório de Requisitos — `[NOME_DO_APP]` (App de Treino)
 
-> **Versão:** 2.0 (escopo reduzido — MVP)  
+> **Versão:** 2.1 (incorpora achados de validação/revisão adversarial — ver [`REVISAO_VALIDACAO.md`](./REVISAO_VALIDACAO.md))  
 > **Data:** 27/06/2026  
 > **Status do produto:** Protótipo de interface (UI) navegável, sem backend  
 > **Branch:** `claude/requirements-report-plan-bz1qad`
@@ -55,6 +55,33 @@ recebe, executa, marca exercícios concluídos e vê sua evolução.
 - ℹ️ A rota `app/agenda/` ainda existe no código, mas está **fora do MVP**
   (será ocultada/removida na etapa de implementação).
 
+### 1.3. Premissas Arquiteturais
+
+- **Multi-tenant (academia):** o MVP assume **1 academia por tenant**. A entidade
+  `Gym` saiu da UI, mas **mantém-se um `gymId` mínimo no schema desde já** para
+  isolar dados entre academias (a busca de RF-VIN-04 não pode varrer uma lista
+  global) e não travar o crescimento B2B. *(Sem isso, a 2ª academia cliente
+  enxergaria dados da 1ª.)*
+- **Preparação arquitetural necessária:** hoje os "mocks" estão **hardcoded
+  dentro de componentes `"use client"`** e o estado é `useState` local. Antes de
+  plugar backend, é preciso extrair dados para `lib/`, reduzir `"use client"` às
+  folhas interativas e tornar as páginas Server Components (ver Plano, Fase 0).
+
+### 1.4. Débito de Remoção (artefatos fora do escopo ainda no código)
+
+A reescrita do escopo **não** removeu o código antigo. Itens a podar/ocultar na
+implementação (estimativa não trivial — não é só a rota Agenda):
+
+| Artefato | Local | Ação |
+|---|---|---|
+| Item de menu "Agenda" | `components/sidebar.tsx` | Ocultar/remover |
+| Rodapé fixo "Admin / Gerente" | `components/sidebar.tsx` | Substituir por usuário da sessão |
+| Aba "Academia" (nome, endereço, horários) | `app/configuracoes/page.tsx` | Remover (gestão de academia fora do MVP) |
+| Notificações SMS/Marketing | `app/configuracoes/page.tsx` | Remover (fora do MVP) |
+| Segurança "2FA / Integrações / Sessões" | `app/configuracoes/page.tsx` | Reduzir a "trocar senha" |
+| Botão "Agendar" nos cards | `components/personal/trainer-list.tsx` | Remover (depende de Agenda) |
+| Dashboard genérico/admin | `app/page.tsx`, `components/dashboard/*` | Refazer como home por papel |
+
 ---
 
 ## 2. Perfis de Usuário (Personas)
@@ -106,11 +133,12 @@ Legenda: **✅ Implementado (UI)** = existe na interface, com dados mockados ·
 | RF-TRE-07 | Expandir/colapsar exercícios de cada treino | ✅ UI |
 | RF-TRE-08 | Marcar exercício como concluído (com barra de progresso %) | 🟡 (só estado local da sessão) |
 | RF-TRE-09 | Ver detalhes do exercício (séries, reps, descanso, músculo) | ✅ UI (mock) |
-| RF-TRE-10 | Modal com vídeo demonstrativo e instruções | 🟡 (modal placeholder; embed YouTube já nos dados) |
+| RF-TRE-10 | Modal com vídeo demonstrativo e instruções | 🟡 (URLs de embed do YouTube **presentes nos dados, mas não renderizadas** — o modal exibe só um placeholder) |
 | RF-TRE-11 | Reproduzir o vídeo real | ❌ |
 | RF-TRE-12 | Iniciar treino → gera registro (`WorkoutLog`) | 🟡 (botão sem ação) |
 | RF-TRE-13 | Aba **Histórico** real de treinos realizados | 🟡 (UI mock) |
 | RF-TRE-14 | Aba **Progresso** com métricas reais (treinos, calorias, tempo) | 🟡 (UI mock) |
+| RF-TRE-15 | **Recuperar treino interrompido**: `WorkoutLog` `em_andamento` persiste por exercício e é restaurado ao reabrir o app (RN-EXE-11) | ❌ |
 
 ### 3.3. Vínculo Profissional ↔ Aluno
 
@@ -121,6 +149,8 @@ Legenda: **✅ Implementado (UI)** = existe na interface, com dados mockados ·
 | RF-VIN-03 | Aluno vê seu **profissional** (perfil/contato) | 🟡 (lista de trainers existe como UI mock) |
 | RF-VIN-04 | Buscar por nome/especialidade | ✅ (filtra mock) |
 | RF-VIN-05 | Cadastro de profissional (nome, email, telefone, CREF, especialidades) | 🟡 (formulário sem submissão) |
+| RF-VIN-06 | **Convite de aluno** pelo profissional (link/código), criando o aluno e o `Link` em status `pendente` | ❌ *(greenfield — não existe conceito de aluno no app)* |
+| RF-VIN-07 | **Aceite do vínculo** pelo aluno; enquanto não houver vínculo `ativo`, exibir onboarding e nenhum treino de terceiros | ❌ *(greenfield)* |
 
 ### 3.4. Configurações / Perfil
 
@@ -149,15 +179,17 @@ Legenda: **✅ Implementado (UI)** = existe na interface, com dados mockados ·
 | ID | Categoria | Requisito | Status |
 |---|---|---|---|
 | RNF-01 | **Responsividade** | Layout mobile/desktop (sidebar vira drawer) | ✅ |
-| RNF-02 | **PWA** | App instalável (manifest + ícones) | ✅ (config presente) |
+| RNF-02 | **PWA** | App instalável (manifest + ícones) | ❌ **config quebrada** — `next-pwa@5.6.0` está abandonado e incompatível com Next 16/Turbopack; nenhum service worker é gerado. Manifest/ícones ok. Decidir migrar p/ `@serwist/next` ou cortar PWA do MVP |
 | RNF-03 | **Acessibilidade** | `aria-label`, `aria-current`, navegação por teclado | 🟡 (parcial) |
 | RNF-04 | **Tema** | Claro/escuro real (next-themes) | ❌ (não conectado) |
 | RNF-05 | **Persistência** | Banco de dados + API | ❌ |
 | RNF-06 | **Segurança** | Auth, hash de senha, proteção de rotas | ❌ |
-| RNF-07 | **Qualidade** | Lint configurado; testes automatizados | 🟡 (lint sim; testes não) |
+| RNF-07 | **Qualidade** | Lint e testes automatizados | ❌ **script `lint` existe mas sem config ESLint** (sem `.eslintrc*`/`eslint.config.*` nem dependência `eslint`); testes (Vitest/RTL/Playwright) não instalados |
 | RNF-08 | **LGPD** | Tratamento de dados pessoais de alunos | ❌ |
 | RNF-09 | **i18n** | Interface em pt-BR | ✅ (apenas pt-BR no MVP) |
-| RNF-10 | **Observabilidade** | Analytics (Vercel) em produção | ✅ (básico) |
+| RNF-10 | **Observabilidade** | Analytics (Vercel); rastreio de erros (ex.: Sentry) | 🟡 (analytics sim; error tracking ❌) |
+| RNF-11 | **Estados vazios/erro/carregamento** | Cada lista (treinos, roster, histórico, progresso) trata vazio/loading/erro — aluno novo não pode ver dados mock de terceiros (há `components/ui/empty.tsx` disponível e não usado) | ❌ |
+| RNF-12 | **Fuso horário** | "Dia"/streak/`WorkoutLog.date` em fuso canônico `America/Sao_Paulo` (RN-INV-05) | ❌ |
 
 > **Reduções vs. v1.0:** notificações multicanais (email/push/SMS/marketing), 2FA
 > e integrações externas saíram do MVP.
@@ -183,18 +215,22 @@ Legenda: **✅ Implementado (UI)** = existe na interface, com dados mockados ·
 ## 6. Modelo de Dados (reduzido)
 
 ```
-User       { id, name, email, passwordHash, role(profissional|aluno), avatarUrl }
+User       { id, gymId, name, email, passwordHash, roles[](profissional|aluno), avatarUrl, status }
 Profile    { userId, phone, prefs(theme), (profissional: cref, specialties[], bio) }
-Link       { professionalId, alunoId, status }            # vínculo profissional ↔ aluno
-WorkoutPlan{ id, createdBy(professionalId), name, day, estDuration, estCalories, level }
+Link       { gymId, professionalId, alunoId, status(pendente|ativo|inativo) }   # único por par
+WorkoutPlan{ id, gymId, createdBy(professionalId), name, day, estDuration, estCalories, level, status }
 Exercise   { id, workoutPlanId, name, sets, reps, rest, muscle, videoUrl, instructions, order }
-Assignment { id, workoutPlanId, alunoId, assignedBy, status, assignedAt }
-WorkoutLog { id, alunoId, workoutPlanId, date, durationMin, caloriesBurned }
+Assignment { id, workoutPlanId, alunoId, assignedBy, status(ativa|pausada|concluída), assignedAt }
+WorkoutLog { id, alunoId, workoutPlanId, snapshot, status(em_andamento|concluído), date, durationMin, caloriesBurned }
 ExerciseLog{ id, workoutLogId, exerciseId, completed }
 ```
 
-> **Removidos do modelo amplo (v1.0):** `Gym`, `Appointment`, `Notification`
-> multicanal — pertencem a escopos futuros.
+> **Notas:** `gymId` mantém o **tenant** mínimo (premissa 1.3) mesmo sem UI de
+> gestão de academia. `roles[]` cobre o profissional que também treina (RN-USR-08).
+> `WorkoutLog.snapshot` congela os exercícios no início (RN-EXE-09).
+> **Removidos do modelo amplo (v1.0):** `Appointment` e `Notification` multicanal.
+> **Débito de produto:** registro de **carga/peso** (kg, peso corporal, medidas) —
+> dado-chave de evolução — está **fora do MVP**; reavaliar antes da Fase 3.
 
 ---
 
@@ -208,6 +244,11 @@ Itens conscientemente **adiados** para manter o MVP enxuto:
 - 🔔 **Notificações** SMS/marketing, **2FA**, **integrações** externas.
 - 📈 **Dashboard administrativo** com métricas globais.
 - 🌐 **i18n** multi-idioma (MVP só pt-BR).
+- 💳 **Monetização/billing** (preço por academia/profissional/aluno ativo). Decisão
+  de produto pendente; já influencia o schema (contagem de alunos por `gymId`).
+- 🏋️ **Registro de carga/peso e medidas corporais** (ver nota na Seção 6).
+- 📹 **Hospedagem própria de vídeo** (hoje embed YouTube — dependência externa,
+  tracking/LGPD e sem offline); definir fonte/fallback.
 
 ---
 
@@ -218,10 +259,15 @@ Itens conscientemente **adiados** para manter o MVP enxuto:
 | 1 | Ausência de backend e persistência | Produto não usável | 🔴 Alta |
 | 2 | Sem auth e papéis (profissional/aluno) | Bloqueia o fluxo de atribuição | 🔴 Alta |
 | 3 | Atribuição treino→aluno inexistente (núcleo do produto) | Sem isso não há MVP | 🔴 Alta |
-| 4 | Nome do produto indefinido (VIP vs FitPro) | Identidade/branding | 🟠 Média |
-| 5 | Sem testes automatizados | Risco de regressão | 🟠 Média |
-| 6 | LGPD não endereçada | Risco legal (dados de alunos) | 🟠 Média |
-| 7 | Tema claro/escuro não funcional | Expectativa de UX | 🟡 Baixa |
+| 4 | **Onboarding do aluno não especificado** (convite/aceite) — funil B2B2C bloqueado | Sem isso o profissional não chega ao aluno | 🔴 Alta |
+| 5 | **Roster/perfil de aluno é greenfield** (não existe no código; "❌" esconde o esforço) | Maior bloco de trabalho do MVP | 🔴 Alta |
+| 6 | **LGPD com dados potencialmente sensíveis** (treino/biometria); exclusão vs imutabilidade | Risco legal/sanção ANPD; requisito de lançamento | 🔴 Alta |
+| 7 | **Protótipo não preparado para backend** (`use client` + dados em componentes) | Migração vira reescrita | 🔴 Alta |
+| 8 | PWA quebrada (`next-pwa` incompatível) marcada como pronta | Falso-verde; build de produção em risco | 🟠 Média |
+| 9 | Nome do produto indefinido (VIP vs FitPro) | Identidade/branding; bloqueia manifest/SW | 🟠 Média |
+| 10 | Sem testes automatizados nem error tracking | Risco de regressão silenciosa | 🟠 Média |
+| 11 | Sessão de treino sem persistência (perde-se ao recarregar) | Pecado capital de UX em app de treino | 🟠 Média |
+| 12 | Tema claro/escuro não funcional | Expectativa de UX | 🟡 Baixa |
 
 ---
 
