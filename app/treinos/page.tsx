@@ -25,30 +25,29 @@
  * ============================================================================
  */
 
-"use client"
-
 import { AppLayout } from "@/components/app-layout"
 import { WorkoutDetails } from "@/components/workouts/workout-details"
+import { getWorkoutPlans } from "@/lib/data/workouts"
 
 /**
- * Componente da página de Treinos
- * 
- * Renderiza o layout com o componente WorkoutDetails que contém
- * toda a lógica de visualização e interação com treinos.
- * 
+ * Página de Treinos — SERVER COMPONENT.
+ *
+ * Busca os planos no servidor via a fachada `lib/data` (hoje mock, amanhã Prisma)
+ * e passa por props ao `WorkoutDetails` (client), que cuida da interatividade.
+ * Os dados nunca são embutidos no bundle do cliente.
+ *
  * @returns JSX da página de Treinos
  */
-export default function TreinosPage() {
+export default async function TreinosPage() {
+  const plans = await getWorkoutPlans()
+
   return (
     <AppLayout
       title="Treinos"
       subtitle="Gerencie seus planos de treino e acompanhe seu progresso."
     >
-      {/* 
-        Componente principal de detalhes dos treinos
-        Gerencia abas, expansão de exercícios, vídeos e progresso
-      */}
-      <WorkoutDetails />
+      {/* Detalhes dos treinos: abas, expansão de exercícios, vídeos e progresso */}
+      <WorkoutDetails plans={plans} />
     </AppLayout>
   )
 }

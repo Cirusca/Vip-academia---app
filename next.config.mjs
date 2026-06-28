@@ -12,11 +12,8 @@
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // TODO(Fase 0.6): remover apos configurar ESLint e zerar os erros reais de TS.
-  // Mantido temporariamente porque o build honesto ainda nao foi habilitado.
-  typescript: {
-    ignoreBuildErrors: true,
-  },
+  // Build honesto: a validação de tipos do TypeScript NÃO é suprimida.
+  // (typescript.ignoreBuildErrors e images.unoptimized foram removidos na Fase 0.)
 }
 
 export default nextConfig
