@@ -49,7 +49,7 @@ export function ConfiguracoesClient({ name, email, roles }: ConfiguracoesClientP
     ? "Profissional"
     : roles.includes("aluno")
       ? "Aluno"
-      : roles.join(", ") || "—"
+      : "—"
 
   return (
     <AppLayout
