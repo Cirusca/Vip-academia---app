@@ -1,6 +1,6 @@
 # Plano de Implementação — `[NOME_DO_APP]` (App de Treino)
 
-> **Versão:** 2.1 (incorpora achados de validação/revisão adversarial — ver [`REVISAO_VALIDACAO.md`](./REVISAO_VALIDACAO.md))  
+> **Versão:** 2.2 (ajustes de sequência/dimensionamento + segurança — ver [`REVISAO_PLANO_E_SEGURANCA.md`](./REVISAO_PLANO_E_SEGURANCA.md) e [`REVISAO_VALIDACAO.md`](./REVISAO_VALIDACAO.md))  
 > **Data:** 27/06/2026  
 > **Documento base:** [`RELATORIO_DE_REQUISITOS.md`](./RELATORIO_DE_REQUISITOS.md) · [`REGRAS_DE_NEGOCIO.md`](./REGRAS_DE_NEGOCIO.md)  
 > **Objetivo:** Evoluir o protótipo de UI para um **app de treino** funcional —
@@ -33,6 +33,21 @@ notificações multicanais, 2FA e integrações (ver Seção 7 do relatório).
 
 ---
 
+## Princípios de Segurança (transversais — desde a Fase 1)
+
+> Detalhe em [`REVISAO_PLANO_E_SEGURANCA.md`](./REVISAO_PLANO_E_SEGURANCA.md), Parte 3.
+> A tríade abaixo é 🔴 e deve ser **arquitetada**, não retrofitada:
+
+- **Isolamento multi-tenant:** `gymId` **sempre** derivado da sessão (nunca do
+  cliente); `lib/data/*` injeta `where:{ gymId }` obrigatório (não expor Prisma cru
+  às páginas); avaliar **RLS** no Postgres.
+- **Autorização no servidor:** Server Actions são endpoints **públicos** — cada
+  uma faz `auth()` → checagem de papel/posse/vínculo → `zod.parse` → query escopada.
+  Nunca autorizar por ocultação de UI. Nunca retornar entidade crua do Prisma
+  (vaza `passwordHash`).
+- **Anti-IDOR:** re-buscar o recurso escopado por `gymId`+posse antes de agir;
+  **404** ao falhar; unicidade por **constraint no banco**.
+
 ## Fase 0 — Fundação, Preparação Arquitetural e Branding
 
 > Esta fase é maior do que parecia: é pré-requisito real de tudo. Inclui resolver
@@ -45,24 +60,32 @@ notificações multicanais, 2FA e integrações (ver Seção 7 do relatório).
 - [ ] **0.2 Tipos + dados:** extrair os dados hardcoded dos componentes para
       `lib/mock-data/` e criar **tipos** (`lib/types.ts`) a partir do modelo da
       Seção 6 (com `gymId`, `roles[]`, `snapshot`, status das entidades).
-- [ ] **0.3 Preparação arquitetural (crítico):** reduzir `"use client"` às folhas
-      interativas; tornar as páginas **Server Components** que recebem dados por
-      props via `lib/data/*`. Sem isso, a migração para banco (Fase 1) vira
-      reescrita e quebra a UI. `lib/data/*` hoje lê dos mocks; amanhã, da API.
+- [ ] **0.3 Preparação arquitetural (mínimo barato):** criar a fachada
+      `lib/data/*` (funções que hoje retornam mocks) e fazer as páginas consumirem
+      dados por ela; extrair as **folhas** realmente interativas para `"use client"`.
+      **Não** converter as 5 páginas em Server Components em big-bang agora (refator
+      caro sem backend) — a conversão RSC é feita **por fatia na Fase 1**, junto da
+      tela que ganha banco. `lib/data/*` hoje lê dos mocks; amanhã, da API.
 - [ ] **0.4 Tema:** **envolver `{children}` em `<ThemeProvider>` no
       `app/layout.tsx`** (o provider existe em `components/theme-provider.tsx` mas
       não está montado) e ligar o toggle da aba Aparência. (RF-CFG-03, RNF-04)
-- [ ] **0.5 Poda do débito de remoção:** ocultar/remover Agenda (menu + rota),
-      rodapé "Admin/Gerente", abas de Academia/SMS/2FA em `/configuracoes` e botão
-      "Agendar" em trainer-list (ver tabela 1.4 do relatório).
+- [ ] **0.5 Poda do débito de remoção (REMOVER, não ocultar; ANTES de 0.6):**
+      deletar Agenda (menu + rota `app/agenda`), rodapé "Admin/Gerente", abas de
+      Academia/SMS/2FA em `/configuracoes`, botão "Agendar" e **a tela `/personal`
+      (trainer-list é gestão de equipe = admin, fora do MVP)**. Ocultar deixaria
+      `app/agenda` quebrando o build honesto de 0.6 (TS2741). Reintrodução futura
+      via histórico git. (ver tabela 1.4 do relatório)
 - [ ] **0.6 Qualidade e build honesto:** **instalar e configurar ESLint**
       (`eslint` + `eslint-config-next`, flat config) — hoje só há o script;
       **remover `typescript.ignoreBuildErrors` e `images.unoptimized`** do
       `next.config.mjs` e **zerar os erros de TS reais** (`strict: true` já ativo).
       Instalar **Vitest + RTL** (deps + script `test` + jsdom) com 1 smoke por página.
-- [ ] **0.7 Infra mínima:** `.env.example` (`DATABASE_URL`, `AUTH_SECRET`, chave de
-      e-mail), documentar ambientes (dev/staging/prod), **CI** (lint + build + test
-      em PR) e escolher **error tracking** (ex.: Sentry, free tier). (RNF-10)
+- [ ] **0.7 Infra mínima:** **adicionar `.env` ao `.gitignore`** (hoje cobre só
+      `.env*.local` — risco de vazar segredo); `.env.example` só com
+      `DATABASE_URL`/`DIRECT_URL`/`AUTH_SECRET` (sem "chave de e-mail" — reset é
+      manual); documentar ambientes; **CI** (lint + build + test em PR). Error
+      tracking (Sentry) fica como **decisão registrada**; instalação na Fase 1
+      (quando houver runtime servidor). Infra de **e2e/Playwright** também aqui. (RNF-10)
 - [ ] **0.8 PWA — SEM service worker no MVP (decidido):** **remover `next-pwa`**
       do `next.config.mjs` e do `package.json` (está quebrado/no-op no Turbopack e
       bloqueia o build). **Manter `public/manifest.json` + ícones** → app instalável
@@ -82,43 +105,56 @@ verdes SEM flags de supressão**; CI rodando em PR; decisão de PWA registrada.
 > tabelas de usuário/sessão — modelá-lo depois força re-migração). O seed só roda
 > após o hash existir. Entregar uma **fatia vertical** demonstrável.
 
-- [ ] **1.1 Stack (decidida — Prisma + PostgreSQL):** Next.js Route Handlers/Server
-      Actions + **Prisma** + **PostgreSQL** (Neon/Supabase). Configurar
-      **connection pooling** para serverless (Prisma Accelerate / PgBouncer / driver
-      serverless) — Prisma em funções serverless esgota o pool sem isso.
-- [ ] **1.2 Schema (auth + núcleo juntos):** modelar `User`(+`roles[]`,`gymId`,
-      `status`), `Profile`, `Link` **e** as tabelas do Auth.js (`Account`,
-      `Session`, `VerificationToken`) na **mesma** migração inicial, mais
-      `WorkoutPlan`+`Exercise` para a 1ª fatia. `gymId` em todas as entidades
-      multi-tenant (premissa 1.3 do relatório). Demais tabelas entram por fatia.
-- [ ] **1.3 Auth:** login, logout (ligar *Sair* da sidebar), papéis (RBAC), hash
-      (argon2/bcrypt), proteção de rotas por middleware, usuário da sessão no lugar
-      do fixo. (RF-AUTH-01/03/04)
+- [ ] **1.1 Stack (decidida):** Next.js Route Handlers/Server Actions + **Prisma**
+      + **PostgreSQL no Neon** com **`@prisma/adapter-neon` + `@neondatabase/serverless`**
+      (driver HTTP, sem pool a esgotar) e `DIRECT_URL` separado p/ `prisma migrate`.
+      Singleton `lib/prisma.ts`. Registrar que o free-tier do Neon hiberna (cold
+      start no 1º login).
+- [ ] **1.2 Schema (auth + núcleo mínimo):** na **mesma** migração inicial,
+      tabelas do Auth.js (`Account`, `Session`, `VerificationToken`) + `User`
+      (`roles[]`, `gymId`, `status`, `passwordHash`, **`mustChangePassword`**) +
+      `WorkoutPlan` + `Exercise` (o que a fatia 1.5 exige). **`Link` entra na Fase 3**
+      e `Profile` na Fase 4 (migração aditiva). **Colunas de soft delete** já aqui.
+      `gymId` em toda entidade multi-tenant. `VerificationToken` fica inerte (sem e-mail).
+- [ ] **1.3 Auth:** **`session.strategy: 'jwt'`** (com adapter o default seria
+      DB-session, que não roda no Edge), com `roles[]`/`gymId` no token p/ o gate no
+      middleware — que no Next 16 é **`proxy.ts`** (renomeado). Authz fina (escrita)
+      re-checada nas Server Actions. Hash com **bcryptjs** (portável; argon2 nativo
+      não roda no edge). Login, logout (ligar *Sair*), usuário da sessão no lugar do
+      fixo. (RF-AUTH-01/03/04)
 - [ ] **1.4 Recuperação de senha — RESET MANUAL (decidido):** no MVP **não** há
-      e-mail transacional. O profissional/admin redefine a senha do aluno (gera
-      senha temporária / força troca no próximo login). Zero dependência externa,
-      custo ou secret. Self-service por e-mail fica como débito pós-MVP. (RF-AUTH-02)
+      e-mail transacional. **Na Fase 1, reset = operação de seed/dev** (o reset
+      pelo profissional depende de `Link`, que só existe na Fase 3). Quando houver:
+      senha temporária **aleatória** (operador não escolhe nem vê em claro),
+      `mustChangePassword` força troca no 1º login, **audit log** de quem resetou,
+      aviso ao aluno. Self-service por e-mail fica pós-MVP. (RF-AUTH-02)
 - [ ] **1.5 1ª fatia fim-a-fim:** profissional autenticado **cria um WorkoutPlan**
       que é **persistido e lido** do banco numa tela (já via `lib/data/*` real).
       Validação com **zod** (já instalado). Seed mínimo com hash.
 
-**Aceite:** login/logout reais; rotas protegidas por papel; um plano criado por um
-profissional persiste no banco e reaparece após reload; migração inclui as tabelas
-do Auth.js; pooling configurado.
+**Aceite:** login/logout reais; rotas protegidas por papel; a criação do plano roda
+numa Server Action autorizada (papel=profissional) que **carimba `gymId`/`createdBy`
+da sessão**; **teste negativo** — aluno ou usuário de outro `gymId` não cria/lê o
+plano (404 no servidor); plano criado com ≥1 Exercise ordenado, validado por zod +
+RN-LIM; migração inclui as tabelas do Auth.js; adapter Neon configurado.
 
 ---
 
 ## Fase 2 — Completar Persistência do Núcleo
 
-- [ ] **2.1** Migrar as entidades restantes (`Assignment`, `WorkoutLog`,
-      `ExerciseLog`) e portar as telas remanescentes para `lib/data/*` real.
-- [ ] **2.2** Política de exclusão = **soft delete** (`status inativo`) para
-      entidades com histórico (RN-INV-03); planos excluídos preservam logs (RN-PLA-08).
-- [ ] **2.3** Migrações **aditivas** (expand/contract) + `prisma migrate deploy`
-      no CI + procedimento de rollback documentado (haverá dados de teste reais).
+- [ ] **2.1** Migrar `Assignment` (casa com a Fase 3.3) + leitura de
+      histórico/progresso do banco. **`WorkoutLog`/`ExerciseLog` e a tela de execução
+      (snapshot/recuperação) ficam na Fase 3.4** — não duplicar aqui.
+- [ ] **2.2** Soft delete: as **colunas** nascem no schema da Fase 1.2; aqui
+      garante-se o **filtro padrão** via helper único em `lib/data` (toda query
+      exclui inativos) + testes de que listas, **busca (RF-VIN-04)** e **contagem de
+      quota (RN-LIM-01)** ignoram registros inativos. (RN-INV-03, RN-PLA-08)
+- [ ] **2.3** **Adotar já:** `prisma migrate deploy` no CI (evita drift).
+      **Adiar** disciplina expand/contract + runbook de rollback para o 1º deploy
+      com dados reais; até lá, reset+reseed do banco de dev/staging é o "rollback".
 
-**Aceite:** todas as telas leem/escrevem do banco; exclusão é soft delete;
-pipeline de migração no CI.
+**Aceite:** telas de **leitura** (roster/histórico/progresso) leem do banco
+(execução fica na Fase 3); filtro de soft delete coberto por teste; `migrate deploy` no CI.
 
 ---
 
@@ -130,15 +166,18 @@ pipeline de migração no CI.
       (RF-VIN-06/07, RN-VIN-09) **Pré-requisito do restante da fase.**
 - [ ] **3.2 Profissional — CRUD:** criar/editar/excluir planos e exercícios; aplicar
       limites (RN-LIM-01) e ordem dos exercícios. (RF-TRE-02/03)
-- [ ] **3.3 Atribuição:** profissional **atribui** plano a alunos vinculados
-      (`Assignment`), com **unicidade** do par ativo (RN-ATR-08); o aluno vê só o
-      atribuído. (RF-TRE-04, RF-TRE-06)
-- [ ] **3.4 Aluno — execução:** "Iniciar Treino" cria `WorkoutLog` com **snapshot**
-      dos exercícios (RN-EXE-09); progresso persiste **incrementalmente** por
-      exercício e **recupera** treino interrompido ao reabrir (RF-TRE-15, RN-EXE-11);
-      conclusão pede **confirmação** antes de tornar imutável (RN-EXE-10); render do
-      vídeo (embed) com fallback. Conclusão deriva só de `ExerciseLog` (sem flag
-      mock). (RF-TRE-08/11/12/13/14)
+- [ ] **3.3 Atribuição (precisa do roster):** **listar meus alunos ativos +
+      selecionar** (parte do roster, puxada da Fase 4.1 para cá pois é pré-requisito);
+      profissional **atribui** plano a alunos vinculados (`Assignment`); **unicidade**
+      do par ativo por **índice único parcial** no Postgres `UNIQUE(workoutPlanId,
+      alunoId) WHERE status='ativa'` (RN-ATR-08); o aluno vê só o atribuído. (RF-TRE-04/06)
+- [ ] **3.4 Aluno — execução (quebrar em sub-itens):** **(pré-requisito)** remover
+      a flag `completed` do mock e fazer `getProgress` derivar só de `ExerciseLog`.
+      (i) `WorkoutLog` `em_andamento`→`concluído` com **snapshot** dos exercícios ao
+      iniciar (RN-EXE-09); (ii) **confirmação** antes de tornar imutável (RN-EXE-10);
+      (iii) render do **embed YouTube real** (`youtube-nocookie.com`) com fallback;
+      (iv) persistência incremental + recuperação via **`idb`** (instalar) ou
+      localStorage, *last-write-wins* no MVP (sem fila multi-device). (RF-TRE-08/11/12/13/15, RN-EXE-11)
 - [ ] **3.5 Estados vazios/erro/carregamento:** aluno novo vê onboarding/empty, não
       dados de terceiros; usar `components/ui/empty.tsx`. (RNF-11)
 - [ ] **3.6 Fuso horário:** `WorkoutLog.date` e streak no fuso canônico
@@ -154,17 +193,28 @@ streak refletem dados reais no fuso correto; nenhum botão "morto".
 
 ## Fase 4 — Vínculo Prof↔Aluno, Perfil e Home por Papel
 
-- [ ] **4.1 Roster do profissional:** lista dos seus alunos; acessar perfil do
-      aluno e atribuir treinos. (RF-VIN-01/02)
-- [ ] **4.2 Visão do aluno:** ver seu profissional (perfil/contato); cadastro de
-      profissional funcional. (RF-VIN-03/05)
-- [ ] **4.3 Configurações/Perfil:** persistir perfil e trocar senha; **troca de
-      email exige reverificação** (RN-CFG-01); persistir tema. (RF-CFG-01/02/03/04)
+- [ ] **4.1 Roster do profissional (greenfield — não reusa trainer-list):** a
+      seleção de alunos p/ atribuir já entra na Fase 3.3; aqui fica o **perfil
+      detalhado do aluno + histórico**. Filtra por `Link.status=ativo`,
+      `professionalId`=sessão, escopado por `gymId`. (RF-VIN-01/02)
+- [ ] **4.2 Visão do aluno:** ver seu profissional vinculado (perfil/contato —
+      barato). **Cadastro/onboarding do profissional + validação de CREF (RN-USR-05)
+      foi movido para a Fase 1** (é pré-requisito de 1.5: sem profissional não há
+      quem crie treino). (RF-VIN-03/05)
+- [ ] **4.3 Configurações/Perfil:** persistir perfil; **trocar senha** (self-service
+      com senha atual, RN-CFG-02 — coexiste com o reset manual de 1.4). **Troca de
+      e-mail fica pós-MVP** (e-mail imutável no MVP): reverificação exigiria e-mail
+      transacional, que foi cortado (1.4) — evita reintroduzir a dependência por uma
+      edição secundária. Tema já vem da Fase 0.4 (localStorage/next-themes); persistir
+      no banco fica pós-MVP. (RF-CFG-01/02)
 - [ ] **4.4 Home por papel:** aluno = meu progresso/treinos do dia; profissional =
       meus alunos/atribuições. (RF-HOME-01/02)
-- [ ] **4.5 Ciclo de vida do vínculo:** encerrar vínculo → atribuições `pausada` +
-      acesso read-only do aluno (RN-ATR-07); reativação sem duplicar (RN-VIN-07);
-      **cascata ao desativar profissional** com alunos ativos (RN-VIN-08).
+- [ ] **4.5 Ciclo de vida do vínculo:** **no MVP** — encerrar vínculo →
+      atribuições `pausada` + acesso read-only do aluno com aviso ao abrir o app
+      (pull, não push — notificação está fora do MVP) (RN-ATR-07); reativação sem
+      duplicar (RN-VIN-07). A **cascata ao desativar profissional** (RN-VIN-08) vira
+      **débito**: sem admin no MVP não há gatilho de UI — basta a constraint que
+      impede atribuição ativa de profissional inativo + procedimento manual documentado.
 
 **Aceite:** vínculo funcional nos dois sentidos incl. encerramento/reativação;
 perfil persiste; reverificação de email; home enxuta por papel.
@@ -177,11 +227,18 @@ perfil persiste; reverificação de email; home enxuta por papel.
 > app B2B2C que trata dados pessoais (possivelmente sensíveis) de alunos no Brasil,
 > são requisitos de lançamento.
 
-- [ ] **PL.1 LGPD mínima:** consentimento no cadastro (dado de treino/biometria
-      como sensível), política de privacidade, **exclusão de conta/dados** (apaga
-      PII, anonimiza logs — RN-SEG-04), definição controlador×operador. (RNF-08)
-- [ ] **PL.2 e2e do happy path:** teste automatizado de ponta a ponta do fluxo
-      central (login → convite/aceite → criar → atribuir → executar → recuperar).
+- [ ] **PL.1 LGPD mínima:** consentimento **específico e destacado** colhido **no
+      aceite do convite** (RN-VIN-09), não no momento em que o profissional cria o
+      aluno pendente; registro auditável (timestamp/versão/IP); política de
+      privacidade versionada. **Exclusão = HARD DELETE** dos logs do titular
+      preservando só agregados desvinculados (mais defensável que "anonimizar"
+      registros granulares reidentificáveis) — decidir o cascade na **Fase 2**.
+      Enquadramento: tratar o **fornecedor como controlador (ou conjunto)**, não
+      "operador"; definir canal/dono da requisição do titular + SLA 15 dias. (RNF-08)
+- [ ] **PL.2 e2e (incremental, infra na Fase 0.7/1):** o spec é construído **por
+      fatia** (Fase 1 login+criar; Fase 3 atribuir+executar+recuperar), de modo que
+      na 4.5 seja "consolidar", não "criar do zero". Inclui o happy path **e ≥1 teste
+      negativo de autorização** (aluno A / outro `gymId` não acessa recurso de B → 404).
 
 **Aceite:** exclusão LGPD funcional; consentimento registrado; e2e do happy path verde.
 
