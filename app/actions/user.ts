@@ -4,6 +4,8 @@ import { requireSession } from "@/lib/auth/session"
 import { changePasswordSchema, forceChangePasswordSchema } from "@/lib/validation/user"
 import { changePassword } from "@/lib/data/users"
 import { NotFoundError } from "@/lib/auth/errors"
+import { signOut } from "@/auth"
+import { isRedirectError } from "next/dist/client/components/redirect-error"
 
 /**
  * Troca voluntária de senha (aba de segurança em /configuracoes).
@@ -99,6 +101,14 @@ export async function forceChangePasswordAction(
     throw err
   }
 
-  // 4. Sucesso — nunca retorna senha ou hash
+  // 4. Sucesso — invalida JWT stale (mustChangePassword=true) e redireciona para login
+  try {
+    await signOut({ redirectTo: "/login" })
+  } catch (e) {
+    if (isRedirectError(e)) throw e
+    throw e
+  }
+
+  // Nunca alcançado (signOut lança NEXT_REDIRECT), mas satisfaz o tipo de retorno
   return {}
 }

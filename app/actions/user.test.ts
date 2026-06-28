@@ -17,12 +17,25 @@ vi.mock("next/navigation", () => ({
   }),
 }))
 
+// Mock Auth.js signOut — on success it triggers a NEXT_REDIRECT internally;
+// in unit tests we just want to verify it was called with the right args.
+vi.mock("@/auth", () => ({
+  signOut: vi.fn().mockResolvedValue(undefined),
+}))
+
+// Mock isRedirectError so NEXT_REDIRECT simulation doesn't blow up tests
+vi.mock("next/dist/client/components/redirect-error", () => ({
+  isRedirectError: vi.fn().mockReturnValue(false),
+}))
+
 import { changePasswordAction, forceChangePasswordAction } from "@/app/actions/user"
 import { changePassword } from "@/lib/data/users"
 import { requireSession } from "@/lib/auth/session"
+import { signOut } from "@/auth"
 
 const mockChangePassword = vi.mocked(changePassword)
 const mockRequireSession = vi.mocked(requireSession)
+const mockSignOut = vi.mocked(signOut)
 
 const validSession = {
   userId: "user-123",
@@ -179,7 +192,7 @@ describe("forceChangePasswordAction", () => {
     expect(mockChangePassword).not.toHaveBeenCalled()
   })
 
-  it("retorna {} em caso de sucesso (sem currentPassword)", async () => {
+  it("chama signOut com redirectTo=/login em caso de sucesso (sem currentPassword)", async () => {
     mockRequireSession.mockResolvedValueOnce(validSession)
     mockChangePassword.mockResolvedValueOnce(undefined)
 
@@ -188,9 +201,8 @@ describe("forceChangePasswordAction", () => {
       confirmPassword: "NewPass1",
     })
 
-    const result = await forceChangePasswordAction(fd)
+    await forceChangePasswordAction(fd)
 
-    expect(result).toEqual({})
     // currentPassword must NOT be passed — forceChange skips current password check
     expect(mockChangePassword).toHaveBeenCalledWith("user-123", {
       newPassword: "NewPass1",
@@ -199,5 +211,21 @@ describe("forceChangePasswordAction", () => {
       expect.anything(),
       expect.objectContaining({ currentPassword: expect.anything() }),
     )
+
+    // CRITICAL: JWT stale com mustChangePassword=true deve ser descartado via signOut
+    expect(mockSignOut).toHaveBeenCalledWith({ redirectTo: "/login" })
+  })
+
+  it("NÃO chama signOut se validação falhar", async () => {
+    mockRequireSession.mockResolvedValueOnce(validSession)
+
+    const fd = buildFormData({
+      newPassword: "NewPass1",
+      confirmPassword: "DifferentPass1",
+    })
+
+    await forceChangePasswordAction(fd)
+
+    expect(mockSignOut).not.toHaveBeenCalled()
   })
 })
