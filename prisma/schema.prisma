@@ -1,0 +1,166 @@
+// ============================================================================
+// prisma/schema.prisma — [NOME_DO_APP] (app de treino B2B2C)
+// ----------------------------------------------------------------------------
+// Prisma 7.8 + PostgreSQL + Auth.js v5 (@auth/prisma-adapter).
+// Multi-tenant por gymId (derivado da sessão, NUNCA do cliente).
+// Soft delete (status/deletedAt) nas entidades com histórico.
+//
+// ESCOPO: esta é a 1a migração (Fase 1 = "init_auth_and_core"):
+//   Auth.js (Account/Session/VerificationToken) + User + WorkoutPlan + Exercise.
+//   Assignment(Fase2), Link(Fase3), WorkoutLog/ExerciseLog(Fase3), Profile(Fase4)
+//   entram por migrações ADITIVAS, com seus campos e relações, depois.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  // Prisma 7: as URLs de conexão ficam em prisma.config.ts (migrate usa DIRECT_URL)
+  // e o PrismaClient recebe um `adapter` em runtime. Não declarar url/directUrl aqui.
+  provider = "postgresql"
+}
+
+// ============================================================================
+// ENUMS (Fase 1)
+// ============================================================================
+
+enum Role {
+  profissional
+  aluno
+}
+
+enum UserStatus {
+  ativo
+  inativo // soft delete da conta (RN-INV-03)
+}
+
+enum WorkoutPlanStatus {
+  ativo
+  inativo // soft delete do plano (RN-PLA-08)
+}
+
+// ============================================================================
+// AUTH.JS v5 — contrato do @auth/prisma-adapter (não renomear campos).
+// Com session.strategy = "jwt" (Fase 1.3), Session e VerificationToken ficam
+// INERTES (vazias) no MVP, mas as tabelas são exigidas pelo adapter.
+// ============================================================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique // RN-USR-02 (email = login, único por pessoa)
+  emailVerified DateTime?
+  image         String?
+
+  // ---- Domínio (RN-USR) ----------------------------------------------------
+  roles              Role[]     @default([]) // acúmulo de papéis (RN-USR-08)
+  passwordHash       String? // NUNCA expor por select default (RN-SEG)
+  status             UserStatus @default(ativo) // soft delete da conta
+  mustChangePassword Boolean    @default(false) // reset manual (Fase 1.4)
+  gymId              String // tenant — derivado da sessão
+  cref               String? // profissional (RN-USR-05); unicidade via índice parcial (SQL)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // par com status=inativo
+
+  accounts     Account[]
+  sessions     Session[]
+  workoutPlans WorkoutPlan[] @relation("PlanOwner")
+
+  @@index([gymId, status])
+  @@index([gymId, deletedAt])
+  @@map("users")
+}
+
+model Account {
+  id                       String  @id @default(cuid())
+  userId                   String
+  type                     String
+  provider                 String
+  providerAccountId        String
+  refresh_token            String?
+  access_token             String?
+  expires_at               Int?
+  token_type               String?
+  scope                    String?
+  id_token                 String?
+  session_state            String?
+  refresh_token_expires_in Int?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ============================================================================
+// NÚCLEO FASE 1 — WorkoutPlan + Exercise
+// ============================================================================
+
+model WorkoutPlan {
+  id          String            @id @default(cuid())
+  gymId       String // tenant — toda query escopada por gymId
+  createdBy   String // dono = profissional (RN-PLA-01/02)
+  name        String
+  day         String? // rótulo (ex.: "Treino A" / "Segunda")
+  estDuration Int? // minutos (numérico; exibido como faixa na UI — RN-PLA-07)
+  estCalories Int? // kcal (numérico)
+  level       String? // iniciante|intermediário|avançado (RN-PLA-06; enum em zod)
+  status      WorkoutPlanStatus @default(ativo) // soft delete (RN-PLA-08)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  owner     User       @relation("PlanOwner", fields: [createdBy], references: [id], onDelete: Restrict)
+  exercises Exercise[]
+
+  @@index([gymId, status])
+  @@index([gymId, createdBy, status]) // quota RN-LIM-01 (<=50 planos/prof)
+  @@map("workout_plans")
+}
+
+model Exercise {
+  id            String  @id @default(cuid())
+  workoutPlanId String
+  name          String
+  sets          Int // RN-PLA-04 / RN-INV-04: sets >= 1 (CHECK em SQL)
+  reps          String // faixa "8-12" (RN-PLA-04)
+  rest          String // descanso "60s"
+  muscle        String
+  videoUrl      String?
+  instructions  String?
+  order         Int // ordem significativa, 1-based (RN-PLA-05); única por plano
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workoutPlan WorkoutPlan @relation(fields: [workoutPlanId], references: [id], onDelete: Cascade)
+
+  @@unique([workoutPlanId, order]) // não há duas posições iguais no mesmo plano
+  @@index([workoutPlanId, order]) // leitura ordenada
+  @@map("exercises")
+}

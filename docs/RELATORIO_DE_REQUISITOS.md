@@ -215,8 +215,8 @@ Legenda: **✅ Implementado (UI)** = existe na interface, com dados mockados ·
 ## 6. Modelo de Dados (reduzido)
 
 ```
-User       { id, gymId, name, email, passwordHash, roles[](profissional|aluno), avatarUrl, status }
-Profile    { userId, phone, prefs(theme), (profissional: cref, specialties[], bio) }
+User       { id, gymId, name, email, passwordHash, roles[](profissional|aluno), status, mustChangePassword, cref?, avatarUrl }
+Profile    { userId, phone, prefs(theme), (profissional: specialties[], bio) }
 Link       { gymId, professionalId, alunoId, status(pendente|ativo|inativo) }   # único por par
 WorkoutPlan{ id, gymId, createdBy(professionalId), name, day, estDuration, estCalories, level, status }
 Exercise   { id, workoutPlanId, name, sets, reps, rest, muscle, videoUrl, instructions, order }

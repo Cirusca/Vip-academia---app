@@ -17,3 +17,5 @@ node_modules
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+# Prisma client gerado (regenerado via prisma generate)
+/lib/generated
