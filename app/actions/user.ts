@@ -52,7 +52,8 @@ export async function changePasswordAction(
       // Anti-enumeração: não revelar se usuário existe ou senha está errada
       return { error: "Senha atual incorreta." }
     }
-    throw err
+    console.error("[changePasswordAction] erro inesperado:", err)
+    return { error: "Erro interno. Tente novamente." }
   }
 
   // 4. Sucesso — nunca retorna senha ou hash
@@ -96,9 +97,10 @@ export async function forceChangePasswordAction(
     })
   } catch (err) {
     if (err instanceof NotFoundError) {
-      return { error: "Senha atual incorreta." }
+      return { error: "Erro ao alterar senha." }
     }
-    throw err
+    console.error("[forceChangePasswordAction] erro inesperado:", err)
+    return { error: "Erro interno. Tente novamente." }
   }
 
   // 4. Sucesso — invalida JWT stale (mustChangePassword=true) e redireciona para login
