@@ -93,6 +93,36 @@
   RN-VIN-06) só entra com `Link` na Fase 3 — hoje qualquer aluno do mesmo gym pode
   receber atribuição.
 
+### Fase 2 — fatia B: updateWorkoutPlan + deleteWorkoutPlan + CI (✅ feito + validado)
+- **Zod schemas** `updateWorkoutPlanSchema`/`deleteWorkoutPlanSchema` em
+  `lib/validation/workoutPlan.ts` (exercícios opcionais; campos anuláveis typed
+  com `.nullable()`).
+- **`updateWorkoutPlan`** (server-only): re-busca por `tenantWhere` (gymId da
+  sessão) + `status=ativo` antes de gravar; `assertCan("workoutPlan:update")`
+  com gymId+createdBy; substituição atômica de exercícios (`deleteMany + create`)
+  quando `input.exercises` presente; `order` 1-based re-atribuído pelo servidor.
+- **`deleteWorkoutPlan`** (server-only, soft-delete): mesmo padrão de re-busca +
+  `assertCan("workoutPlan:delete")`; `$transaction` atômico: pausa `Assignments`
+  ativas (`status → pausada`) + `WorkoutPlan` → `status=inativo, deletedAt=now()`.
+  Plano já inativo → `NotFoundError` (filtra `status=ativo`).
+- **Server Actions** `updateWorkoutPlanAction`/`deleteWorkoutPlanAction` em
+  `app/actions/workoutPlans.ts`: seguem o padrão `requireSession → zod.parse →
+  fachada → revalidatePath("/treinos")`. _Observação: não têm early-gate
+  `assertCan` (a fachada cobre; aluno ainda executa 1 query antes de ser
+  rejeitado — melhoria de defesa-em-profundidade para versão futura)._
+- **Testes: 68** (eram 59): +9 de integração (update: nome, exercícios, no-op,
+  IDOR, aluno; delete: IDOR, aluno, soft-delete+cascade, já-inativo).
+  TDD red→green verificado (TypeError antes da impl; 68/68 após).
+- **CI: `.github/workflows/ci.yml`** — PostgreSQL 16 service container;
+  `pnpm install → prisma generate → prisma migrate deploy → pnpm test →
+  tsc --noEmit → pnpm build`. Branches `main` e `claude/**`.
+- **Leitura de segurança Fase 2B ✅:** `gymId` da sessão em toda query;
+  anti-IDOR via `tenantWhere + NotFoundError`; `assertCan` cobre posse+tenant
+  para update/delete; `$transaction` garante atomicidade do cascade; `planViewSelect`
+  explícito (sem colunas internas); `server-only` intacto (build falha se front
+  importar). Dívida mínima: early-gate de papel nas actions de update/delete
+  (não é vulnerabilidade — fachada rejeita).
+
 ---
 
 ## Ambiente (CRÍTICO para retomar)
@@ -154,16 +184,15 @@ Feito e validado (ver §"Fase 2 — fatia A" acima). `Assignment` + índice parc
 `getWorkoutPlanById`, `assertCan` estendida, seed + 59 testes + build.
 **Resta como dívida de F3:** gate de *vínculo ativo* (RN-ATR-02/07) com `Link`.
 
-### B. Edição/soft-delete de plano + UI de criação (descongelar o mínimo)
-- Server Actions `updateWorkoutPlan`/`deleteWorkoutPlan` (assertCan read/update/
-  delete já cobre posse+tenant). Formulário de criação ligado a
-  `createWorkoutPlanAction`.
+### B. Edição/soft-delete de plano + CI — ✅ CONCLUÍDO (Fase 2B)
+Feito e validado (ver §"Fase 2 — fatia B" acima). `updateWorkoutPlan` +
+`deleteWorkoutPlan` (soft-delete + cascade), Server Actions, 68 testes,
+CI `.github/workflows/ci.yml`, leitura de segurança.
 
-### C. Dívidas conscientes da Fase 1 a fechar
+### C. Dívidas conscientes da Fase 1 a fechar (Fase 2C)
 - Fluxo de **reset de senha manual** (usa `mustChangePassword`) + troca de senha
   (RN-CFG-02) com `passwordSchema`.
-- ESLint + **CI** (rodar `pnpm test` e `pnpm build`; resolver engines do Prisma no
-  CI — ver Ambiente). `/configuracoes` ainda client+mock. Branding (nome do app).
+- ESLint. `/configuracoes` ainda client+mock. Branding (nome do app).
 - `callbackUrl` do login não está sendo respeitado (cai sempre em `/`) — ajustar.
 
 ---
@@ -179,7 +208,7 @@ Feito e validado (ver §"Fase 2 — fatia A" acima). `Assignment` + índice parc
   gym) e CHECKs. (`Assignment` ✅ feito na F2.)
 - Engines do Prisma em CI/produção (ver Ambiente). `generate` é offline (Rust-free);
   só o schema-engine é necessário, via `PRISMA_SCHEMA_ENGINE_BINARY`.
-- Fase 0 inacabada: ESLint/CI, `/configuracoes`, branding. (Vitest ✅ na Fase 1.)
+- Fase 0 inacabada: ESLint, `/configuracoes`, branding. (Vitest ✅ F1; CI ✅ F2B.)
 - **Gate de vínculo ativo (RN-ATR-02/07):** atribuir/pausar ainda não checa um
   `Link` ativo prof↔aluno (não existe até a F3). Hoje qualquer aluno do mesmo gym
   pode receber atribuição; encerrar vínculo ainda não pausa atribuições em cascata.
