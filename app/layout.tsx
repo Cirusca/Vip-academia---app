@@ -1,32 +1,3 @@
-/**
- * ============================================================================
- * FITPRO ACADEMIA - LAYOUT RAIZ DA APLICAÇÃO
- * ============================================================================
- * 
- * Este é o layout principal que envolve todas as páginas da aplicação.
- * Responsável por:
- * - Configurar fontes globais (Geist Sans e Mono)
- * - Definir metadados SEO e PWA
- * - Configurar viewport para mobile
- * - Aplicar estilos base
- * 
- * ESTRUTURA:
- * - Metadados para SEO e compartilhamento social
- * - Configuração de viewport para mobile
- * - Configuração do manifest para PWA
- * - Layout HTML com fontes otimizadas
- * 
- * MANUTENÇÃO:
- * - Para alterar fontes, modifique as importações de next/font/google
- * - Para alterar metadados, modifique o objeto metadata
- * - Para adicionar providers globais, envolva {children} no body
- * 
- * @author FitPro Academia
- * @version 1.0.0
- * @lastModified 2026-06-01
- * ============================================================================
- */
-
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
@@ -58,19 +29,19 @@ const _geistMono = Geist_Mono({
  */
 export const metadata: Metadata = {
   // Título exibido na aba do navegador e resultados de busca
-  title: 'FitPro Academia - Sistema de Gestão',
-  
+  title: 'VIP Academia',
+
   // Descrição para SEO e compartilhamento
-  description: 'Sistema completo para gestão de academia com treinos personalizados, gerenciamento de alunos, personal trainers, agenda e relatórios.',
-  
+  description: 'App de treino B2B2C para academias — profissional atribui, aluno executa.',
+
   // Identificação do gerador
-  generator: 'v0.app',
-  
+  generator: 'next',
+
   // Palavras-chave para SEO
   keywords: ['academia', 'gestão', 'treinos', 'fitness', 'personal trainer', 'alunos'],
-  
+
   // Autor do sistema
-  authors: [{ name: 'FitPro Academia' }],
+  authors: [{ name: 'VIP Academia' }],
   
   // Configuração do manifest para PWA (instalação como app)
   manifest: '/manifest.json',
@@ -79,7 +50,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'FitPro Academia',
+    title: 'VIP Academia',
   },
   
   // Ícones para diferentes contextos

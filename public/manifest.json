@@ -1,6 +1,6 @@
 {
-  "name": "FitPro Academia",
-  "short_name": "FitPro",
+  "name": "VIP Academia",
+  "short_name": "VIP",
   "description": "Sistema de gerenciamento de academia - Controle de alunos, treinos, personal trainers e agenda",
   "start_url": "/",
   "display": "standalone",
