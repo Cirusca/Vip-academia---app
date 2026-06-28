@@ -14,4 +14,8 @@ export default defineConfig({
   datasource: {
     url: process.env.DIRECT_URL,
   },
+  migrations: {
+    // `prisma db seed` roda o seed de desenvolvimento (idempotente).
+    seed: "tsx prisma/seed.ts",
+  },
 })
