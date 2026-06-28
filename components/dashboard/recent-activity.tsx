@@ -5,26 +5,10 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Clock, Flame, Dumbbell, ChevronRight, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
+import type { RecentWorkout } from "@/lib/types"
 
-// Último treino realizado — componente principal da seção direita do dashboard
-const lastWorkout = {
-  name: "Treino B — Costas e Bíceps",
-  date: "Hoje, 07:30",
-  duration: "52 min",
-  calories: 310,
-  level: "Intermediário",
-  completed: true,
-  exercises: [
-    { name: "Puxada frontal", sets: 4, reps: "12", done: true },
-    { name: "Remada curvada", sets: 4, reps: "10", done: true },
-    { name: "Remada unilateral", sets: 3, reps: "12", done: true },
-    { name: "Rosca direta", sets: 3, reps: "12", done: true },
-    { name: "Rosca martelo", sets: 3, reps: "10", done: true },
-    { name: "Rosca concentrada", sets: 3, reps: "12", done: false },
-  ],
-}
-
-export function RecentActivity() {
+// Último treino realizado — recebido por prop (vem da fachada via Server Component).
+export function RecentActivity({ workout: lastWorkout }: { workout: RecentWorkout }) {
   const doneCount = lastWorkout.exercises.filter((e) => e.done).length
   const total = lastWorkout.exercises.length
   const percent = Math.round((doneCount / total) * 100)

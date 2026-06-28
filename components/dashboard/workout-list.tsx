@@ -5,45 +5,14 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Plus, Clock, Flame, ChevronRight, Play } from "lucide-react"
 import Link from "next/link"
-
-const workouts = [
-  {
-    id: 1,
-    name: "Treino A — Peito e Tríceps",
-    exercises: 8,
-    duration: "45 min",
-    calories: 320,
-    level: "Intermediário",
-    color: "bg-primary",
-    lastDone: "há 3 dias",
-  },
-  {
-    id: 2,
-    name: "Treino B — Costas e Bíceps",
-    exercises: 7,
-    duration: "50 min",
-    calories: 280,
-    level: "Intermediário",
-    color: "bg-blue-500",
-    lastDone: "Hoje",
-  },
-  {
-    id: 3,
-    name: "Treino C — Pernas Completo",
-    exercises: 10,
-    duration: "60 min",
-    calories: 450,
-    level: "Avançado",
-    color: "bg-red-500",
-    lastDone: "há 5 dias",
-  },
-]
+import type { WorkoutSummary } from "@/lib/types"
 
 interface WorkoutListProps {
+  workouts: WorkoutSummary[]
   compact?: boolean
 }
 
-export function WorkoutList({ compact = false }: WorkoutListProps) {
+export function WorkoutList({ workouts, compact = false }: WorkoutListProps) {
   const displayWorkouts = compact ? workouts.slice(0, 3) : workouts
 
   return (

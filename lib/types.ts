@@ -31,3 +31,53 @@ export interface WorkoutPlan {
   calories: string
   exercises: Exercise[]
 }
+
+// ---------------------------------------------------------------------------
+// Dashboard (home por aluno) — tipos de view.
+// Ícones são passados como CHAVE (string serializável), não como componente,
+// porque dados cruzam a fronteira servidor→cliente e componentes não serializam.
+// ---------------------------------------------------------------------------
+
+export type StatIconKey = "dumbbell" | "clock" | "flame" | "trending-up"
+
+export interface DashboardStat {
+  title: string
+  value: string
+  change: string
+  icon: StatIconKey
+}
+
+export interface ActivityPoint {
+  name: string
+  treinos: number
+  duracao: number
+}
+
+export interface WorkoutSummary {
+  id: number
+  name: string
+  exercises: number
+  duration: string
+  calories: number
+  level: string
+  /** Classe Tailwind de cor (serializável). */
+  color: string
+  lastDone: string
+}
+
+export interface RecentExercise {
+  name: string
+  sets: number
+  reps: string
+  done: boolean
+}
+
+export interface RecentWorkout {
+  name: string
+  date: string
+  duration: string
+  calories: number
+  level: string
+  completed: boolean
+  exercises: RecentExercise[]
+}
