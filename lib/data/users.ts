@@ -4,6 +4,9 @@ import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 import { NotFoundError } from "@/lib/auth/errors"
 
+// Hash isca para igualar o tempo de resposta quando não há hash real (anti-timing).
+const DUMMY_HASH = "$2b$10$kXaX9t3gnfZMFWHpLw7Id.tIP6s9wfTCbzhauqaVHRFFPuC/HNq7G"
+
 /**
  * Altera a senha de um usuário.
  *
@@ -24,18 +27,16 @@ export async function changePassword(
     select: { id: true, passwordHash: true },
   })
 
-  if (!user) {
-    throw new NotFoundError()
-  }
-
-  // Se currentPassword foi informada, verifica antes de prosseguir.
+  // Se currentPassword foi informada, verifica SEMPRE com um bcrypt.compare —
+  // inclusive contra o hash isca quando o usuário/hash não existe — para que o
+  // tempo de resposta não distinga "não existe" de "senha errada" (anti-timing).
   if (opts.currentPassword !== undefined) {
-    // Hash isca: garante bcrypt.compare de tempo constante mesmo sem hash real (anti-timing oracle).
-    const DUMMY_HASH = "$2b$10$kXaX9t3gnfZMFWHpLw7Id.tIP6s9wfTCbzhauqaVHRFFPuC/HNq7G"
-    const valid = await bcrypt.compare(opts.currentPassword, user.passwordHash ?? DUMMY_HASH)
-    if (!valid) {
+    const valid = await bcrypt.compare(opts.currentPassword, user?.passwordHash ?? DUMMY_HASH)
+    if (!user || !valid) {
       throw new NotFoundError()
     }
+  } else if (!user) {
+    throw new NotFoundError()
   }
 
   if (!opts.newPassword) throw new Error("newPassword must not be empty")

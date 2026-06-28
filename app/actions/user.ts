@@ -21,11 +21,19 @@ export async function changePasswordAction(
 ): Promise<{ error?: string }> {
   // 1. Autenticação — userId da sessão apenas
   let userId: string
+  let mustChange: boolean
   try {
     const session = await requireSession()
     userId = session.userId
+    mustChange = session.mustChangePassword
   } catch {
     return { error: "Não autenticado." }
+  }
+
+  // 1b. Usuário obrigado a trocar deve usar a tela forçada (que invalida o JWT).
+  // Permitir a troca voluntária aqui deixaria o JWT stale (mustChange=true) vivo.
+  if (mustChange) {
+    return { error: "Use a tela de troca de senha obrigatória." }
   }
 
   // 2. Validação via Zod
@@ -71,11 +79,20 @@ export async function forceChangePasswordAction(
 ): Promise<{ error?: string }> {
   // 1. Autenticação — userId da sessão apenas
   let userId: string
+  let mustChange: boolean
   try {
     const session = await requireSession()
     userId = session.userId
+    mustChange = session.mustChangePassword
   } catch {
     return { error: "Não autenticado." }
+  }
+
+  // 1b. Esta ação pula a verificação da senha atual — só é legítima para quem
+  // está obrigado a trocar (mustChangePassword=true). Caso contrário, qualquer
+  // sessão sequestrada poderia rotacionar a senha sem conhecer a atual.
+  if (!mustChange) {
+    return { error: "Operação não permitida." }
   }
 
   // 2. Validação via Zod

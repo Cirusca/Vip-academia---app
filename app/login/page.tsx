@@ -2,6 +2,7 @@ import { AuthError } from "next-auth"
 import { redirect } from "next/navigation"
 import { Dumbbell } from "lucide-react"
 import { signIn } from "@/auth"
+import { safeCallbackPath } from "@/lib/auth/safe-redirect"
 
 export default async function LoginPage({
   searchParams,
@@ -9,19 +10,20 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string; callbackUrl?: string }>
 }) {
   const { error, callbackUrl } = await searchParams
-  const redirectTo = callbackUrl ?? "/"
+  const redirectTo = safeCallbackPath(callbackUrl)
 
   async function authenticate(formData: FormData) {
     "use server"
+    // Sanitiza de novo: o cliente pode postar qualquer callbackUrl, ignorando o input.
+    const cb = safeCallbackPath(formData.get("callbackUrl") as string | null)
     try {
       await signIn("credentials", {
         email: formData.get("email"),
         password: formData.get("password"),
-        redirectTo: (formData.get("callbackUrl") as string | null) ?? "/",
+        redirectTo: cb,
       })
     } catch (err) {
       if (err instanceof AuthError) {
-        const cb = (formData.get("callbackUrl") as string | null) ?? "/"
         redirect(`/login?error=1&callbackUrl=${encodeURIComponent(cb)}`)
       }
       throw err

@@ -44,6 +44,9 @@ const validSession = {
   mustChangePassword: false,
 }
 
+// Sessão de usuário obrigado a trocar a senha (mustChangePassword=true).
+const mustChangeSession = { ...validSession, mustChangePassword: true }
+
 function buildFormData(fields: Record<string, string>): FormData {
   const fd = new FormData()
   for (const [k, v] of Object.entries(fields)) {
@@ -72,6 +75,21 @@ describe("changePasswordAction", () => {
     const result = await changePasswordAction(fd)
 
     expect(result).toEqual({ error: "Não autenticado." })
+    expect(mockChangePassword).not.toHaveBeenCalled()
+  })
+
+  it("rejeita usuário com mustChangePassword=true (deve usar a tela forçada)", async () => {
+    mockRequireSession.mockResolvedValueOnce(mustChangeSession)
+
+    const fd = buildFormData({
+      currentPassword: "OldPass1",
+      newPassword: "NewPass1",
+      confirmPassword: "NewPass1",
+    })
+
+    const result = await changePasswordAction(fd)
+
+    expect(result).toHaveProperty("error")
     expect(mockChangePassword).not.toHaveBeenCalled()
   })
 
@@ -177,8 +195,23 @@ describe("forceChangePasswordAction", () => {
     expect(mockChangePassword).not.toHaveBeenCalled()
   })
 
-  it("retorna erro de validação se senhas não coincidem", async () => {
+  it("rejeita usuário sem mustChangePassword (não pode pular a senha atual)", async () => {
     mockRequireSession.mockResolvedValueOnce(validSession)
+
+    const fd = buildFormData({
+      newPassword: "NewPass1",
+      confirmPassword: "NewPass1",
+    })
+
+    const result = await forceChangePasswordAction(fd)
+
+    expect(result).toHaveProperty("error")
+    expect(mockChangePassword).not.toHaveBeenCalled()
+    expect(mockSignOut).not.toHaveBeenCalled()
+  })
+
+  it("retorna erro de validação se senhas não coincidem", async () => {
+    mockRequireSession.mockResolvedValueOnce(mustChangeSession)
 
     const fd = buildFormData({
       newPassword: "NewPass1",
@@ -193,7 +226,7 @@ describe("forceChangePasswordAction", () => {
   })
 
   it("chama signOut com redirectTo=/login em caso de sucesso (sem currentPassword)", async () => {
-    mockRequireSession.mockResolvedValueOnce(validSession)
+    mockRequireSession.mockResolvedValueOnce(mustChangeSession)
     mockChangePassword.mockResolvedValueOnce(undefined)
 
     const fd = buildFormData({
@@ -217,7 +250,7 @@ describe("forceChangePasswordAction", () => {
   })
 
   it("NÃO chama signOut se validação falhar", async () => {
-    mockRequireSession.mockResolvedValueOnce(validSession)
+    mockRequireSession.mockResolvedValueOnce(mustChangeSession)
 
     const fd = buildFormData({
       newPassword: "NewPass1",
