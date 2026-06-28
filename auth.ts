@@ -22,6 +22,11 @@ const credentialsSchema = z.object({
   password: z.string().min(1),
 })
 
+// Hash "isca" para igualar o tempo de resposta quando o e-mail não existe (ou não
+// tem hash): sempre executamos UM bcrypt.compare, fechando o oráculo de timing
+// que permitiria enumerar e-mails cadastrados. Não é segredo.
+const DUMMY_HASH = "$2b$10$kXaX9t3gnfZMFWHpLw7Id.tIP6s9wfTCbzhauqaVHRFFPuC/HNq7G"
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   adapter: PrismaAdapter(prisma),
@@ -35,12 +40,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const { email, password } = parsed.data
         const user = await prisma.user.findUnique({ where: { email } })
 
-        // Falha fechada e genérica para todos os casos (anti-enumeração).
-        if (!user?.passwordHash) return null
-        if (user.status !== "ativo") return null
+        // SEMPRE roda um bcrypt.compare (contra o hash real ou a isca) para que o
+        // tempo de resposta não revele se o e-mail existe (anti-enumeração).
+        const ok = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH)
 
-        const ok = await bcrypt.compare(password, user.passwordHash)
-        if (!ok) return null
+        // Falha fechada e genérica para todos os casos.
+        if (!ok || !user?.passwordHash || user.status !== "ativo") return null
 
         return {
           id: user.id,
