@@ -3,16 +3,13 @@ import { redirect } from "next/navigation"
 import { Dumbbell } from "lucide-react"
 import { signIn } from "@/auth"
 
-/**
- * Login mínimo (Credentials). Página standalone (sem sidebar). O `proxy.ts`
- * deixa `/login` passar; após autenticar, redireciona para "/".
- */
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>
+  searchParams: Promise<{ error?: string; callbackUrl?: string }>
 }) {
-  const { error } = await searchParams
+  const { error, callbackUrl } = await searchParams
+  const redirectTo = callbackUrl ?? "/"
 
   async function authenticate(formData: FormData) {
     "use server"
@@ -20,10 +17,9 @@ export default async function LoginPage({
       await signIn("credentials", {
         email: formData.get("email"),
         password: formData.get("password"),
-        redirectTo: "/",
+        redirectTo: (formData.get("callbackUrl") as string | null) ?? "/",
       })
     } catch (err) {
-      // signIn lança um redirect (NEXT_REDIRECT) no sucesso — só tratamos AuthError.
       if (err instanceof AuthError) {
         redirect("/login?error=1")
       }
@@ -54,6 +50,7 @@ export default async function LoginPage({
         )}
 
         <form action={authenticate} className="space-y-4">
+          <input type="hidden" name="callbackUrl" value={redirectTo} />
           <div className="space-y-1.5">
             <label htmlFor="email" className="text-sm font-medium text-foreground">
               E-mail
