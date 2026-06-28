@@ -44,3 +44,36 @@ export const crefSchema = z
         return (BR_UFS as readonly string[]).includes(uf)
       }, "UF do CREF inválida."),
   )
+
+/**
+ * Troca voluntária de senha (aba de segurança em /configuracoes).
+ * Exige senha atual para não abrir vetor de session-hijacking.
+ */
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Senha atual obrigatória."),
+    newPassword: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    message: "As senhas não coincidem.",
+    path: ["confirmPassword"],
+  })
+
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>
+
+/**
+ * Troca forçada de senha (mustChangePassword=true → /trocar-senha).
+ * Não exige senha atual — o admin já redefiniu no backend.
+ */
+export const forceChangePasswordSchema = z
+  .object({
+    newPassword: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    message: "As senhas não coincidem.",
+    path: ["confirmPassword"],
+  })
+
+export type ForceChangePasswordInput = z.infer<typeof forceChangePasswordSchema>
