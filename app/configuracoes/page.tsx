@@ -578,15 +578,10 @@ export default function ConfiguracoesPage() {
   }
 
   return (
-    <AppLayout>
-      {/* CABECALHO DA PAGINA */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Configuracoes</h1>
-        <p className="text-muted-foreground">
-          Gerencie suas preferencias e configuracoes do sistema
-        </p>
-      </div>
-
+    <AppLayout
+      title="Configurações"
+      subtitle="Gerencie suas preferências e configurações do sistema"
+    >
       {/* LAYOUT: SIDEBAR + CONTEUDO */}
       <div className="grid gap-6 lg:grid-cols-4">
         {/* MENU LATERAL DE NAVEGACAO */}

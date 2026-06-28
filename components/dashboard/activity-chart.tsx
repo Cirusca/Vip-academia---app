@@ -10,18 +10,9 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts"
+import type { ActivityPoint } from "@/lib/types"
 
-const data = [
-  { name: "Seg", treinos: 1, duracao: 48 },
-  { name: "Ter", treinos: 1, duracao: 55 },
-  { name: "Qua", treinos: 0, duracao: 0 },
-  { name: "Qui", treinos: 1, duracao: 60 },
-  { name: "Sex", treinos: 1, duracao: 45 },
-  { name: "Sáb", treinos: 1, duracao: 52 },
-  { name: "Dom", treinos: 0, duracao: 0 },
-]
-
-export function ActivityChart() {
+export function ActivityChart({ data }: { data: ActivityPoint[] }) {
   return (
     <Card className="bg-card border-border">
       <CardHeader>
