@@ -96,6 +96,66 @@ async function main() {
     }
   }
 
+  // Fase 3 — vínculo ativo prof↔aluno (idempotente). Necessário para o gate de
+  // atribuição (RN-ATR-02/RN-VIN-06) e para o aluno ver "seu profissional".
+  const existingLink = await prisma.link.findFirst({
+    where: { gymId: GYM, professionalId: prof.id, alunoId: aluno.id, status: "ativo" },
+    select: { id: true },
+  })
+  if (!existingLink) {
+    await prisma.link.create({
+      data: {
+        gymId: GYM,
+        professionalId: prof.id,
+        alunoId: aluno.id,
+        status: "ativo",
+      },
+    })
+  }
+
+  // Fase 3 — 1 WorkoutLog concluído de exemplo (ontem), com snapshot dos
+  // exercícios do plano (RN-EXE-09). Dá histórico/streak inicial ao aluno.
+  const existingLog = await prisma.workoutLog.findFirst({
+    where: { gymId: GYM, alunoId: aluno.id, status: "concluido" },
+    select: { id: true },
+  })
+  if (!existingLog && plan) {
+    const planExercises = await prisma.exercise.findMany({
+      where: { workoutPlanId: plan.id },
+      orderBy: { order: "asc" },
+    })
+    const yesterday = new Date()
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1)
+    const yesterdayDate = new Date(yesterday.toISOString().slice(0, 10) + "T00:00:00.000Z")
+
+    await prisma.workoutLog.create({
+      data: {
+        gymId: GYM,
+        alunoId: aluno.id,
+        workoutPlanId: plan.id,
+        status: "concluido",
+        date: yesterdayDate,
+        startedAt: new Date(Date.now() - 50 * 60_000),
+        concludedAt: new Date(),
+        durationMin: 50,
+        caloriesBurned: 350,
+        exerciseLogs: {
+          create: planExercises.map((ex) => ({
+            name: ex.name,
+            sets: ex.sets,
+            reps: ex.reps,
+            rest: ex.rest,
+            muscle: ex.muscle,
+            videoUrl: ex.videoUrl,
+            instructions: ex.instructions,
+            order: ex.order,
+            completed: true,
+          })),
+        },
+      },
+    })
+  }
+
   console.log(
     `Seed OK — gym=${GYM} | prof=${prof.email} | aluno=${aluno.email} | senha dev="${DEV_PASSWORD}"`,
   )
