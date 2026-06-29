@@ -36,6 +36,46 @@ async function cleanup() {
   await db.user.deleteMany({ where: { id: { in: ALL_IDS } } })
 }
 
+describe("calcStreak (unit — sem banco)", () => {
+  const now = new Date("2026-06-28T10:00:00.000Z") // domingo
+
+  it("streak 0 quando não há treinos", () => {
+    expect(calcStreak([], now)).toBe(0)
+  })
+
+  it("streak 1 com treino hoje", () => {
+    const dates = [new Date("2026-06-28T00:00:00.000Z")]
+    expect(calcStreak(dates, now)).toBe(1)
+  })
+
+  it("streak 1 com treino ontem (hoje pendente — RN-EXE-06)", () => {
+    const dates = [new Date("2026-06-27T00:00:00.000Z")]
+    expect(calcStreak(dates, now)).toBe(1)
+  })
+
+  it("streak 3 com treinos hoje + 2 dias anteriores", () => {
+    const dates = [
+      new Date("2026-06-28T00:00:00.000Z"),
+      new Date("2026-06-27T00:00:00.000Z"),
+      new Date("2026-06-26T00:00:00.000Z"),
+    ]
+    expect(calcStreak(dates, now)).toBe(3)
+  })
+
+  it("gap de 1 dia zera streak depois da sequência", () => {
+    const dates = [
+      new Date("2026-06-28T00:00:00.000Z"),
+      new Date("2026-06-26T00:00:00.000Z"), // pula 27
+    ]
+    expect(calcStreak(dates, now)).toBe(1)
+  })
+
+  it("treino mais recente há 2 dias → streak 0 (ambos os dias sem treino: hoje e ontem)", () => {
+    const dates = [new Date("2026-06-26T00:00:00.000Z")]
+    expect(calcStreak(dates, now)).toBe(0)
+  })
+})
+
 const suite = process.env.DATABASE_URL ? describe : describe.skip
 
 suite("Fase 3 — lib/data/workoutLogs.ts (execução)", () => {
@@ -165,6 +205,35 @@ suite("Fase 3 — lib/data/workoutLogs.ts (execução)", () => {
     it("aluno2 não vê histórico do aluno (isolamento)", async () => {
       const history = await listWorkoutHistory(aluno2)
       expect(history).toHaveLength(0)
+    })
+  })
+
+  describe("getProgressMetrics", () => {
+    it("retorna métricas corretas para o aluno", async () => {
+      const metrics = await getProgressMetrics(aluno)
+      expect(metrics.totalWorkouts).toBeGreaterThanOrEqual(1)
+      expect(typeof metrics.totalCalories).toBe("number")
+      expect(typeof metrics.totalDurationMin).toBe("number")
+      expect(metrics.streak).toBeGreaterThanOrEqual(0)
+    })
+
+    it("profissional não pode chamar → NotFoundError", async () => {
+      await expect(getProgressMetrics(prof)).rejects.toBeInstanceOf(NotFoundError)
+    })
+  })
+
+  describe("getAlunoProgress", () => {
+    it("profissional com link ativo lê métricas do aluno", async () => {
+      const metrics = await getAlunoProgress(prof, aluno.userId)
+      expect(typeof metrics.totalWorkouts).toBe("number")
+    })
+
+    it("profissional sem link ativo não lê métricas → NotFoundError (RN-EXE-08)", async () => {
+      await expect(getAlunoProgress(prof, aluno2.userId)).rejects.toBeInstanceOf(NotFoundError)
+    })
+
+    it("aluno não pode ler métricas alheias → NotFoundError", async () => {
+      await expect(getAlunoProgress(aluno, aluno.userId)).rejects.toBeInstanceOf(NotFoundError)
     })
   })
 })
