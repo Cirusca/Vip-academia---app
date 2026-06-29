@@ -27,6 +27,9 @@ export type Action =
   | "workoutPlan:delete"
   | "assignment:create"
   | "assignment:revoke"
+  | "link:invite" // profissional cria convite (RN-VIN-02)
+  | "link:accept" // aluno aceita convite — gym match (RN-VIN-09)
+  | "workoutLog:update" // aluno atualiza o próprio log em_andamento (RN-EXE-02)
 
 /** Recurso com dono e tenant (forma mínima exigida para autorizar). */
 export interface OwnedResource {
@@ -41,13 +44,16 @@ export interface OwnedResource {
   viewerHasActiveAssignment?: boolean
 }
 
-/** Sobrecarga: `create` não tem recurso preexistente (o alvo é o gym da sessão). */
+/** Sobrecarga: `create`/`invite` não têm recurso preexistente (o alvo é o gym da sessão). */
 export function assertCan(session: SessionUser, action: "workoutPlan:create"): void
+export function assertCan(session: SessionUser, action: "link:invite"): void
 export function assertCan(
   session: SessionUser,
   action: "workoutPlan:read" | "workoutPlan:update" | "workoutPlan:delete" | "assignment:create" | "assignment:revoke",
   resource: OwnedResource,
 ): void
+export function assertCan(session: SessionUser, action: "link:accept", resource: OwnedResource): void
+export function assertCan(session: SessionUser, action: "workoutLog:update", resource: OwnedResource): void
 export function assertCan(
   session: SessionUser,
   action: Action,
@@ -101,6 +107,30 @@ export function assertCan(
       if (!resource) throw new NotFoundError()
       if (resource.gymId !== session.gymId) throw new NotFoundError()
       if (!isProfissional(session)) throw new NotFoundError()
+      if (resource.createdBy !== session.userId) throw new NotFoundError()
+      return
+    }
+
+    case "link:invite": {
+      // Só profissional gera convites (RN-VIN-02). Sem recurso preexistente.
+      if (!isProfissional(session)) throw new NotFoundError()
+      return
+    }
+
+    case "link:accept": {
+      if (!resource) throw new NotFoundError()
+      // Gym do aluno deve coincidir com o gym do link — anti-IDOR cross-tenant.
+      if (resource.gymId !== session.gymId) throw new NotFoundError()
+      // Somente aluno aceita convite (profissional não se auto-vincula).
+      if (!isAluno(session)) throw new NotFoundError()
+      return
+    }
+
+    case "workoutLog:update": {
+      if (!resource) throw new NotFoundError()
+      if (resource.gymId !== session.gymId) throw new NotFoundError()
+      // Somente aluno, e somente o dono do log (createdBy = alunoId do log).
+      if (!isAluno(session)) throw new NotFoundError()
       if (resource.createdBy !== session.userId) throw new NotFoundError()
       return
     }

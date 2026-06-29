@@ -99,3 +99,44 @@ describe("assertCan — assignment:create / assignment:revoke", () => {
     })
   }
 })
+
+describe("assertCan — link:invite", () => {
+  it("profissional pode criar convite", () => {
+    expect(() => assertCan(prof, "link:invite")).not.toThrow()
+  })
+  it("aluno não pode criar convite → NotFoundError", () => {
+    expect(() => assertCan(aluno, "link:invite")).toThrow(NotFoundError)
+  })
+})
+
+describe("assertCan — link:accept", () => {
+  const resource: OwnedResource = { gymId: "gym-1", createdBy: "u-prof" }
+  it("aluno do mesmo gym pode aceitar", () => {
+    expect(() => assertCan(aluno, "link:accept", resource)).not.toThrow()
+  })
+  it("aluno de outro gym não pode aceitar → NotFoundError", () => {
+    const alunoOutroGym: SessionUser = { userId: "u-aluno-2", gymId: "outro-gym", roles: ["aluno"], mustChangePassword: false }
+    expect(() => assertCan(alunoOutroGym, "link:accept", resource)).toThrow(NotFoundError)
+  })
+  it("profissional não pode aceitar convite → NotFoundError", () => {
+    expect(() => assertCan(prof, "link:accept", resource)).toThrow(NotFoundError)
+  })
+})
+
+describe("assertCan — workoutLog:update", () => {
+  const resource: OwnedResource = { gymId: "gym-1", createdBy: "u-aluno" }
+  it("aluno dono do log pode atualizar", () => {
+    expect(() => assertCan(aluno, "workoutLog:update", resource)).not.toThrow()
+  })
+  it("outro aluno não pode atualizar log alheio → NotFoundError", () => {
+    const aluno2: SessionUser = { userId: "u-aluno-2", gymId: "gym-1", roles: ["aluno"], mustChangePassword: false }
+    expect(() => assertCan(aluno2, "workoutLog:update", resource)).toThrow(NotFoundError)
+  })
+  it("profissional não pode atualizar log de aluno → NotFoundError", () => {
+    expect(() => assertCan(prof, "workoutLog:update", resource)).toThrow(NotFoundError)
+  })
+  it("aluno de outro gym → NotFoundError", () => {
+    const alunoOutroGym: SessionUser = { userId: "u-aluno", gymId: "outro-gym", roles: ["aluno"], mustChangePassword: false }
+    expect(() => assertCan(alunoOutroGym, "workoutLog:update", resource)).toThrow(NotFoundError)
+  })
+})
