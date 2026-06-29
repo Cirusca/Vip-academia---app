@@ -165,6 +165,7 @@ suite("deleteWorkoutPlan (soft-delete)", () => {
 
   beforeAll(async () => {
     await db.workoutPlan.deleteMany({ where: { gymId: { in: [GYM_A, GYM_B] } } })
+    await db.link.deleteMany({ where: { gymId: { in: [GYM_A, GYM_B] } } })
     await db.user.deleteMany({ where: { id: { in: [profA.userId, alunoA.userId, profB.userId] } } })
     await db.user.createMany({
       data: [
@@ -178,11 +179,16 @@ suite("deleteWorkoutPlan (soft-delete)", () => {
       exercises: [{ name: "Barra", sets: 3, reps: "8", rest: "120s", muscle: "Costas" }],
     })
     deletePlanId = created.id
+    // Gate de vínculo (RN-ATR-02): atribuir exige Link ativo prof↔aluno.
+    await db.link.create({
+      data: { gymId: GYM_A, professionalId: profA.userId, alunoId: alunoA.userId, status: "ativo" },
+    })
     await assignPlanToAluno(profA, { workoutPlanId: deletePlanId, alunoId: alunoA.userId })
   })
 
   afterAll(async () => {
     await db.workoutPlan.deleteMany({ where: { gymId: { in: [GYM_A, GYM_B] } } })
+    await db.link.deleteMany({ where: { gymId: { in: [GYM_A, GYM_B] } } })
     await db.user.deleteMany({ where: { id: { in: [profA.userId, alunoA.userId, profB.userId] } } })
     await db.$disconnect()
   })

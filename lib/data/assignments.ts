@@ -14,7 +14,7 @@ import { assertCan } from "@/lib/auth/assertCan"
 import { NotFoundError } from "@/lib/auth/errors"
 import { db, tenantWhere } from "@/lib/data/_scope"
 import { Prisma } from "@/lib/generated/prisma/client"
-import { AssignmentStatus, UserStatus, WorkoutPlanStatus, Role } from "@/lib/generated/prisma/enums"
+import { AssignmentStatus, UserStatus, WorkoutPlanStatus, Role, LinkStatus } from "@/lib/generated/prisma/enums"
 import type { AssignPlanInput, RevokeAssignmentInput } from "@/lib/validation/assignment"
 
 /**
@@ -52,6 +52,17 @@ export async function assignPlanToAluno(
     select: { id: true },
   })
   if (!aluno) throw new NotFoundError()
+
+  // RN-ATR-02 / RN-VIN-06: profissional só atribui a alunos com vínculo ativo.
+  const activeLink = await db.link.findFirst({
+    where: tenantWhere(session, {
+      professionalId: session.userId,
+      alunoId: aluno.id,
+      status: LinkStatus.ativo,
+    }),
+    select: { id: true },
+  })
+  if (!activeLink) throw new NotFoundError()
 
   // 3) Idempotência (RN-ATR-08): se já há atribuição ativa do par, é no-op.
   const existing = await db.assignment.findFirst({

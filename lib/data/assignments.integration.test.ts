@@ -23,6 +23,7 @@ const ALL_IDS = [profA, profA2, alunoA, alunoA2, profB].map((s) => s.userId)
 
 async function cleanup() {
   await db.assignment.deleteMany({ where: { gymId: { in: [GYM_A, GYM_B] } } })
+  await db.link.deleteMany({ where: { gymId: { in: [GYM_A, GYM_B] } } })
   await db.workoutPlan.deleteMany({ where: { gymId: { in: [GYM_A, GYM_B] } } })
   await db.user.deleteMany({ where: { id: { in: ALL_IDS } } })
 }
@@ -42,6 +43,11 @@ suite("Fase 2 — atribuições (escopo por papel / RN-ATR)", () => {
         { id: alunoA2.userId, email: "it2-alunoA2@x.dev", roles: ["aluno"], gymId: GYM_A },
         { id: profB.userId, email: "it2-profB@x.dev", roles: ["profissional"], gymId: GYM_B },
       ],
+    })
+    // Vínculo ativo profA↔alunoA: desbloqueia os testes positivos existentes (gate RN-ATR-02).
+    // alunoA2 NÃO recebe link (índice parcial: 1 ativo por aluno/gym) → usado no teste negativo.
+    await db.link.create({
+      data: { gymId: GYM_A, professionalId: profA.userId, alunoId: alunoA.userId, status: "ativo" },
     })
     const created = await createWorkoutPlan(profA, {
       name: "Plano F2",
@@ -118,6 +124,19 @@ suite("Fase 2 — atribuições (escopo por papel / RN-ATR)", () => {
   it("profissional dono ainda vê o próprio plano (visão de profissional)", async () => {
     const list = await listWorkoutPlans(profA)
     expect(list.map((p) => p.id)).toContain(planId)
+  })
+
+  it("profissional sem vínculo ativo com aluno → NotFoundError (RN-ATR-02 / RN-VIN-06)", async () => {
+    // alunoA2 não tem link ativo com profA no setup atual de integração
+    await expect(
+      assignPlanToAluno(profA, { workoutPlanId: planId, alunoId: alunoA2.userId }),
+    ).rejects.toBeInstanceOf(NotFoundError)
+  })
+
+  it("profissional com vínculo ativo pode atribuir (baseline)", async () => {
+    // Link ativo profA↔alunoA já existe (beforeAll). Índice parcial impede 2º ativo.
+    const result = await assignPlanToAluno(profA, { workoutPlanId: planId, alunoId: alunoA.userId })
+    expect(result.id).toBeDefined()
   })
 
   it("revogar: aluno deixa de ver; cross-tenant não revoga", async () => {
