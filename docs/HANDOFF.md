@@ -260,6 +260,25 @@ CI `.github/workflows/ci.yml`, leitura de segurança.
 
 ---
 
+## Próximo passo — Design / Front (handoff 2026-06-29)
+
+**Backend validado** (Fases 1–3): 177 testes ✓, `tsc` 0, `pnpm build` 0, seed idempotente, leitura de segurança limpa. Tudo pushado em `claude/requirements-report-plan-bz1qad` (tip `2af25c0`). O front segue **congelado** — só as Server Actions estão expostas.
+
+**Iniciado o design.** Já entregue (no chat, ainda não persistido em doc próprio): resumo do produto + **mapa Telas × Backend** por papel (aluno: onboarding por código → progresso → execução → histórico → meu profissional; profissional: roster → convite → planos → atribuição → progresso do aluno). Reaproveitar esse mapa ao desenhar.
+
+**Lacunas do back que o design vai esbarrar (decidir):**
+1. **Convites pendentes**: `createInvite` gera código mas NÃO há listagem/cancelamento de pendentes. Decidir: só exibir o código gerado (MVP, sem mexer no back) vs. pedir endpoint de listagem.
+2. **Perfil persistido** (telefone, bio, CREF, especialidades) é Fase 4 — hoje `/configuracoes` é só sessão.
+3. **Branding**: ainda `[NOME_DO_APP]` (sidebar, `app/layout.tsx`, `public/manifest.json`).
+
+**`/design-sync` (claude.ai/design) — PAUSADO aguardando decisão do usuário.**
+- Estado: 1ª sincronização (sem `.design-sync/config.json`). É um *app* Next.js (sem Storybook, sem `dist` de lib). "Design system" = **56 primitivos shadcn/ui** em `components/ui/*` + tokens Tailwind 4 (`@theme` em `app/globals.css`) + **9 componentes de app** (`dashboard/*`, `header`, `sidebar`, `workout-details`).
+- Fit: os 56 primitivos bundlam limpo (radix+cva+`lib/utils`); os 9 de app importam código de servidor/`@/lib` → exigem exclusão/ajuste para bundlar no runtime de design.
+- **Pendente do usuário**: (a) confirmar rodar a importação (cria projeto novo no claude.ai/design, pode levar horas / muitos tokens); (b) escopo — só primitivos tematizados (recomendado p/ 1ª) vs. +componentes de app vs. curadoria manual.
+- Pré-requisito: ferramenta `DesignSync` + login no claude.ai/design.
+
+---
+
 ## Pendências / dívidas conscientes
 - **Drift do Prisma:** o SQL bruto (índice parcial de CREF/atribuição, CHECKs) não
   está no `schema.prisma`; **nunca usar `migrate dev`** (autogera e tentaria dropar
