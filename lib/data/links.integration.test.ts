@@ -193,3 +193,52 @@ suite("Fase 3 — lib/data/links.ts", () => {
     })
   })
 })
+
+// Suíte isolada: corrida de aceite concorrente (RN-VIN-03 sob concorrência).
+// O índice parcial único garante 1 vínculo ativo; o perdedor deve ver NotFoundError
+// (seja pelo check de vínculo existente, seja pela normalização do P2002), nunca um 500.
+const RACE_GYM = "it3-race-gym"
+const raceProf: SessionUser = { userId: "it3-race-prof", gymId: RACE_GYM, roles: ["profissional"], mustChangePassword: false }
+const raceAluno: SessionUser = { userId: "it3-race-aluno", gymId: RACE_GYM, roles: ["aluno"], mustChangePassword: false }
+
+suite("Fase 3 — acceptInvite sob concorrência", () => {
+  beforeAll(async () => {
+    await db.link.deleteMany({ where: { gymId: RACE_GYM } })
+    await db.user.deleteMany({ where: { id: { in: [raceProf.userId, raceAluno.userId] } } })
+    await db.user.createMany({
+      data: [
+        { id: raceProf.userId, email: "it3-race-prof@x.dev", roles: ["profissional"], gymId: RACE_GYM },
+        { id: raceAluno.userId, email: "it3-race-aluno@x.dev", roles: ["aluno"], gymId: RACE_GYM },
+      ],
+    })
+  })
+
+  afterAll(async () => {
+    await db.link.deleteMany({ where: { gymId: RACE_GYM } })
+    await db.user.deleteMany({ where: { id: { in: [raceProf.userId, raceAluno.userId] } } })
+    await db.$disconnect()
+  })
+
+  it("dois aceites concorrentes do mesmo aluno → 1 sucesso, 1 NotFoundError, 1 vínculo ativo", async () => {
+    const a = await createInvite(raceProf)
+    const b = await createInvite(raceProf)
+
+    const results = await Promise.allSettled([
+      acceptInvite(raceAluno, { code: a.inviteCode }),
+      acceptInvite(raceAluno, { code: b.inviteCode }),
+    ])
+
+    const fulfilled = results.filter((r) => r.status === "fulfilled")
+    const rejected = results.filter(
+      (r): r is PromiseRejectedResult => r.status === "rejected",
+    )
+    expect(fulfilled).toHaveLength(1)
+    expect(rejected).toHaveLength(1)
+    expect(rejected[0].reason).toBeInstanceOf(NotFoundError)
+
+    const activeCount = await db.link.count({
+      where: { gymId: RACE_GYM, alunoId: raceAluno.userId, status: "ativo" },
+    })
+    expect(activeCount).toBe(1)
+  })
+})

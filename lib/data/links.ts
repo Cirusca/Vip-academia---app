@@ -6,6 +6,7 @@ import { isProfissional, isAluno } from "@/lib/auth/session"
 import { assertCan } from "@/lib/auth/assertCan"
 import { NotFoundError } from "@/lib/auth/errors"
 import { db, tenantWhere } from "@/lib/data/_scope"
+import { Prisma } from "@/lib/generated/prisma/client"
 import { AssignmentStatus, LinkStatus } from "@/lib/generated/prisma/enums"
 import type { AcceptInviteInput, EndLinkInput } from "@/lib/validation/link"
 
@@ -68,15 +69,25 @@ export async function acceptInvite(session: SessionUser, input: AcceptInviteInpu
   })
   if (existing) throw new NotFoundError()
 
-  await db.link.update({
-    where: { id: link.id },
-    data: {
-      alunoId: session.userId,
-      status: LinkStatus.ativo,
-      inviteCode: null,      // consumido — não reutilizável
-      inviteExpiresAt: null,
-    },
-  })
+  try {
+    await db.link.update({
+      where: { id: link.id },
+      data: {
+        alunoId: session.userId,
+        status: LinkStatus.ativo,
+        inviteCode: null,      // consumido — não reutilizável
+        inviteExpiresAt: null,
+      },
+    })
+  } catch (e) {
+    // Corrida: o índice parcial único rejeitou um 2º vínculo "ativo" do aluno
+    // (RN-VIN-03) — entre o check acima e este update. Normaliza para 404
+    // (já vinculado é indistinguível de "convite indisponível"), como em assignments.ts.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      throw new NotFoundError()
+    }
+    throw e
+  }
 }
 
 /**
