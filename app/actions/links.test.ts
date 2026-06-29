@@ -68,6 +68,17 @@ describe("acceptInviteAction", () => {
     const result = await acceptInviteAction(fd)
     expect(result.error).toMatch(/código|inválido|expirado/i)
   })
+
+  it("erro inesperado → mensagem genérica, NÃO vaza o detalhe interno", async () => {
+    vi.mocked(requireSession).mockResolvedValue(alunoSession)
+    vi.mocked(acceptInvite).mockRejectedValue(new Error("PRISMA_SECRET_TABLE_xyz"))
+
+    const fd = new FormData()
+    fd.set("code", "A1B2C3D4")
+    const result = await acceptInviteAction(fd)
+    expect(result.error).not.toMatch(/PRISMA_SECRET_TABLE_xyz/)
+    expect(result.error).toMatch(/interno/i)
+  })
 })
 
 describe("endLinkAction", () => {
@@ -89,5 +100,26 @@ describe("endLinkAction", () => {
     fd.set("linkId", "clxyz123")
     const result = await endLinkAction(fd)
     expect(result.error).toBeTruthy()
+  })
+
+  it("linkId vazio → erro de validação, data layer não chamada", async () => {
+    vi.mocked(requireSession).mockResolvedValue(profSession)
+
+    const fd = new FormData()
+    fd.set("linkId", "")
+    const result = await endLinkAction(fd)
+    expect(result.error).toBeTruthy()
+    expect(vi.mocked(endLink)).not.toHaveBeenCalled()
+  })
+
+  it("erro inesperado → mensagem genérica, NÃO vaza o detalhe interno", async () => {
+    vi.mocked(requireSession).mockResolvedValue(profSession)
+    vi.mocked(endLink).mockRejectedValue(new Error("PRISMA_SECRET_TABLE_xyz"))
+
+    const fd = new FormData()
+    fd.set("linkId", "clxyz123")
+    const result = await endLinkAction(fd)
+    expect(result.error).not.toMatch(/PRISMA_SECRET_TABLE_xyz/)
+    expect(result.error).toMatch(/interno/i)
   })
 })
