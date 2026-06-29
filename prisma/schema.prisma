@@ -84,6 +84,8 @@ model User {
   linksAsProfissional Link[] @relation("LinkProfessional")
   linksAsAluno        Link[] @relation("LinkAluno")
 
+  workoutLogs WorkoutLog[] @relation("WorkoutLogAluno")
+
   @@index([gymId, status])
   @@index([gymId, deletedAt])
   @@map("users")
@@ -152,6 +154,7 @@ model WorkoutPlan {
   owner       User         @relation("PlanOwner", fields: [createdBy], references: [id], onDelete: Restrict)
   exercises   Exercise[]
   assignments Assignment[] // Fase 2 — a quem este plano foi atribuído
+  workoutLogs WorkoutLog[]
 
   @@index([gymId, status])
   @@index([gymId, createdBy, status]) // quota RN-LIM-01 (<=50 planos/prof)
@@ -244,4 +247,65 @@ model Link {
   @@index([gymId, alunoId, status])
   // RN-VIN-03: 1 link ativo por aluno por gym → índice parcial único em SQL
   @@map("links")
+}
+
+// ============================================================================
+// FASE 3 — WorkoutLog + ExerciseLog (execução de treino)
+// ----------------------------------------------------------------------------
+// WorkoutLog: sessão de treino em_andamento→concluido. ExerciseLog: snapshot
+// dos exercícios no momento de iniciar (RN-EXE-09) — sem FK para exercises,
+// tornando o histórico imutável (RN-EXE-07) mesmo que o plano seja editado.
+// ============================================================================
+
+enum WorkoutLogStatus {
+  em_andamento
+  concluido
+}
+
+model WorkoutLog {
+  id             String           @id @default(cuid())
+  gymId          String
+  alunoId        String
+  workoutPlanId  String
+  status         WorkoutLogStatus @default(em_andamento)
+  date           DateTime?        @db.Date  // data local Sao_Paulo; definida ao concluir
+  startedAt      DateTime         @default(now())
+  concludedAt    DateTime?
+  durationMin    Int?             // calculado ao concluir (now − startedAt)
+  caloriesBurned Int?             // estimativa do plano (estCalories)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  aluno       User        @relation("WorkoutLogAluno", fields: [alunoId], references: [id], onDelete: Restrict)
+  workoutPlan WorkoutPlan @relation(fields: [workoutPlanId], references: [id], onDelete: Restrict)
+  exerciseLogs ExerciseLog[]
+
+  @@index([gymId, alunoId, status])
+  @@index([gymId, alunoId, date])
+  // Partial unique: 1 log em_andamento por par (alunoId, workoutPlanId) → em SQL
+  @@map("workout_logs")
+}
+
+model ExerciseLog {
+  id           String     @id @default(cuid())
+  workoutLogId String
+  // Snapshot dos dados do exercício no momento de iniciar (RN-EXE-09).
+  // Sem FK para exercises — isola do plano editável (RN-EXE-07).
+  name         String
+  sets         Int
+  reps         String
+  rest         String
+  muscle       String
+  videoUrl     String?
+  instructions String?
+  order        Int        // para ordenação na UI
+  // Estado do exercício nesta sessão
+  completed    Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  workoutLog WorkoutLog @relation(fields: [workoutLogId], references: [id], onDelete: Cascade)
+
+  @@index([workoutLogId, order])
+  @@map("exercise_logs")
 }
