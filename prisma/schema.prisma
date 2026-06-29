@@ -81,6 +81,9 @@ model User {
   assignmentsReceived Assignment[] @relation("AssignmentAluno")
   assignmentsMade     Assignment[] @relation("AssignmentAssigner")
 
+  linksAsProfissional Link[] @relation("LinkProfessional")
+  linksAsAluno        Link[] @relation("LinkAluno")
+
   @@index([gymId, status])
   @@index([gymId, deletedAt])
   @@map("users")
@@ -207,4 +210,38 @@ model Assignment {
   @@index([gymId, workoutPlanId, status]) // profissional vê a quem um plano foi atribuído
   // RN-ATR-08 ("1 atribuição ativa por par") = índice PARCIAL único em SQL bruto na migração.
   @@map("assignments")
+}
+
+// ============================================================================
+// FASE 3 — Link (vínculo profissional ↔ aluno)
+// ----------------------------------------------------------------------------
+// Profissional cria convite (inviteCode gerado no servidor) → aluno aceita com
+// o código → Link passa de pendente→ativo. Encerrar → inativo + cascade de
+// atribuições para pausada. Partial unique "1 ativo por aluno por gym" em SQL.
+// ============================================================================
+
+enum LinkStatus {
+  pendente
+  ativo
+  inativo
+}
+
+model Link {
+  id              String     @id @default(cuid())
+  gymId           String
+  professionalId  String
+  alunoId         String?    // null até o aceite
+  status          LinkStatus @default(pendente)
+  inviteCode      String?    // null após aceite (consumido, one-time)
+  inviteExpiresAt DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  professional User  @relation("LinkProfessional", fields: [professionalId], references: [id], onDelete: Restrict)
+  aluno        User? @relation("LinkAluno", fields: [alunoId], references: [id], onDelete: Restrict)
+
+  @@index([gymId, professionalId, status])
+  @@index([gymId, alunoId, status])
+  // RN-VIN-03: 1 link ativo por aluno por gym → índice parcial único em SQL
+  @@map("links")
 }
