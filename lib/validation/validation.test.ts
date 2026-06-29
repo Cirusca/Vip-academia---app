@@ -98,3 +98,59 @@ describe("data não-futura em São Paulo (RN-INV-02/05)", () => {
     expect(isNotFutureInSaoPaulo(yesterday, now)).toBe(true)
   })
 })
+
+import { acceptInviteSchema, endLinkSchema } from "@/lib/validation/link"
+// Nota: startWorkout/updateExerciseLog/concludeWorkout ficam em workoutLog.ts
+// mas importamos ambos aqui para um bloco único de testes de validação.
+
+describe("acceptInviteSchema", () => {
+  it("aceita código de 8 hex maiúsculos", () => {
+    expect(acceptInviteSchema.safeParse({ code: "A1B2C3D4" }).success).toBe(true)
+  })
+  it("lowercase é normalizado para uppercase", () => {
+    const r = acceptInviteSchema.safeParse({ code: "a1b2c3d4" })
+    expect(r.success).toBe(true)
+    if (r.success) expect(r.data.code).toBe("A1B2C3D4")
+  })
+  it("rejeita código com menos de 8 caracteres", () => {
+    expect(acceptInviteSchema.safeParse({ code: "A1B2" }).success).toBe(false)
+  })
+  it("rejeita código com caractere inválido (G não é hex)", () => {
+    expect(acceptInviteSchema.safeParse({ code: "G1B2C3D4" }).success).toBe(false)
+  })
+})
+
+describe("endLinkSchema", () => {
+  it("aceita linkId válido", () => {
+    expect(endLinkSchema.safeParse({ linkId: "clxyz123" }).success).toBe(true)
+  })
+  it("rejeita linkId vazio", () => {
+    expect(endLinkSchema.safeParse({ linkId: "" }).success).toBe(false)
+  })
+})
+
+import { startWorkoutSchema, updateExerciseLogSchema, concludeWorkoutSchema } from "@/lib/validation/workoutLog"
+
+describe("startWorkoutSchema", () => {
+  it("aceita workoutPlanId válido", () => {
+    expect(startWorkoutSchema.safeParse({ workoutPlanId: "clxyz" }).success).toBe(true)
+  })
+  it("rejeita workoutPlanId vazio", () => {
+    expect(startWorkoutSchema.safeParse({ workoutPlanId: "" }).success).toBe(false)
+  })
+})
+
+describe("updateExerciseLogSchema", () => {
+  it("aceita exerciseLogId + completed=false", () => {
+    expect(updateExerciseLogSchema.safeParse({ exerciseLogId: "clxyz", completed: false }).success).toBe(true)
+  })
+  it("rejeita completed ausente", () => {
+    expect(updateExerciseLogSchema.safeParse({ exerciseLogId: "clxyz" }).success).toBe(false)
+  })
+})
+
+describe("concludeWorkoutSchema", () => {
+  it("aceita workoutLogId válido", () => {
+    expect(concludeWorkoutSchema.safeParse({ workoutLogId: "clxyz" }).success).toBe(true)
+  })
+})
