@@ -202,18 +202,38 @@ export async function startWorkout(
   })
   if (!plan) throw new NotFoundError()
 
-  const log = await db.workoutLog.create({
-    data: {
-      gymId: session.gymId,
-      alunoId: session.userId,
-      workoutPlanId: input.workoutPlanId,
-      status: WorkoutLogStatus.em_andamento,
-      caloriesBurned: plan.estCalories,
-      exerciseLogs: { create: plan.exercises },
-    },
-    select: workoutLogViewSelect,
-  })
-  return toView(log)
+  try {
+    const log = await db.workoutLog.create({
+      data: {
+        gymId: session.gymId,
+        alunoId: session.userId,
+        workoutPlanId: input.workoutPlanId,
+        status: WorkoutLogStatus.em_andamento,
+        caloriesBurned: plan.estCalories,
+        exerciseLogs: { create: plan.exercises },
+      },
+      select: workoutLogViewSelect,
+    })
+    return toView(log)
+  } catch (e) {
+    // Corrida: o índice parcial único (alunoId, workoutPlanId) WHERE em_andamento
+    // rejeitou um 2º início concorrente (double-tap / duas abas) — entre o check
+    // de idempotência acima e este create. Recupera o log vencedor e devolve-o,
+    // preservando a idempotência (RN-EXE-11) em vez de vazar um P2002/500.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      const won = await db.workoutLog.findFirst({
+        where: tenantWhere(session, {
+          workoutPlanId: input.workoutPlanId,
+          alunoId: session.userId,
+          status: WorkoutLogStatus.em_andamento,
+        }),
+        select: workoutLogViewSelect,
+      })
+      if (won) return toView(won)
+      throw new NotFoundError()
+    }
+    throw e
+  }
 }
 
 /**
